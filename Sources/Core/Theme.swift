@@ -131,19 +131,81 @@ struct GlassStroke: View {
 extension View {
     /// 어떤 것이든 유리판 위에 올린다.
     ///
-    /// - `material`: 얼마나 두꺼운 유리인지. 목록 카드는 얇게(.ultraThin),
-    ///   위에 뜨는 창은 두껍게(.regular) 쓴다. 두꺼울수록 뒤가 덜 비친다.
+    /// iOS 26 부터는 **리퀴드 글래스**를 쓴다. Material 과 다른 점은,
+    /// 흐리게만 하는 게 아니라 뒤에 있는 것을 실제로 굴절시키고 가장자리에서 빛을 휜다.
+    /// 화면이 움직이면 유리도 같이 반응한다.
+    ///
+    /// iOS 25 이하에서는 Material 로 떨어진다. 옛 아이폰에서도 앱은 그대로 돌아간다.
+    ///
+    /// - `material`: 리퀴드 글래스를 못 쓸 때 대신 쓸 유리 두께.
+    /// - `interactive`: 눌리는 것인지. 리퀴드 글래스는 누르면 유리가 눌리듯 반응한다.
+    @ViewBuilder
     func glass(radius: CGFloat = Theme.radius,
                material: Material = .ultraThinMaterial,
-               shadow: Bool = true) -> some View {
+               shadow: Bool = true,
+               interactive: Bool = false,
+               tint: Color? = nil) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+
+        #if compiler(>=6.2)
+        if #available(iOS 26.0, *) {
+            self
+                .glassEffect(
+                    liquid(interactive: interactive, tint: tint),
+                    in: shape)
+                // 리퀴드 글래스는 테두리와 그림자를 스스로 그린다.
+                // 여기서 또 그으면 두 겹이 되어 지저분해진다.
+                .shadow(color: Color(hex: 0x4B2A7A).opacity(shadow ? 0.10 : 0), radius: 18, y: 9)
+        } else {
+            legacyGlass(shape: shape, material: material, shadow: shadow, radius: radius)
+        }
+        #else
+        legacyGlass(shape: shape, material: material, shadow: shadow, radius: radius)
+        #endif
+    }
+
+    #if compiler(>=6.2)
+    @available(iOS 26.0, *)
+    private func liquid(interactive: Bool, tint: Color?) -> Glass {
+        var g = Glass.regular
+        if let tint { g = g.tint(tint) }
+        if interactive { g = g.interactive() }
+        return g
+    }
+    #endif
+
+    /// iOS 25 이하에서 쓰는 유리. Material 에 빛 방향을 손으로 얹는다.
+    private func legacyGlass(shape: RoundedRectangle, material: Material,
+                             shadow: Bool, radius: CGFloat) -> some View {
         self
-            .background(material, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .background(material, in: shape)
             .overlay(GlassStroke(radius: radius))
-            .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .clipShape(shape)
             // 유리는 떠 있어야 한다. 그림자가 없으면 배경에 붙어 보인다.
             // 두 겹으로 준다. 좁고 진한 것과 넓고 옅은 것.
             .shadow(color: .black.opacity(shadow ? 0.06 : 0), radius: 3, y: 1)
             .shadow(color: Color(hex: 0x4B2A7A).opacity(shadow ? 0.10 : 0), radius: 20, y: 10)
+    }
+}
+
+/// 유리 여러 개를 한 덩어리로 묶는다.
+///
+/// 리퀴드 글래스는 가까이 붙은 유리끼리 서로 녹아 붙는다. 물방울이 합쳐지듯이.
+/// 이 안에 넣지 않으면 각자 따로 놀아서 그냥 유리판 여러 장이 된다.
+struct GlassGroup<Content: View>: View {
+    var spacing: CGFloat = 14
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        #if compiler(>=6.2)
+        if #available(iOS 26.0, *) {
+            GlassEffectContainer(spacing: spacing) { content }
+        } else {
+            content
+        }
+        #else
+        content
+        #endif
     }
 }
 
@@ -199,6 +261,7 @@ struct BrandButtonStyle: ButtonStyle {
 }
 
 /// 유리 단추. 색 없이 뒤가 비친다.
+/// iOS 26 에서는 누르면 유리가 실제로 눌리듯 일그러진다(`interactive`).
 struct GlassButtonStyle: ButtonStyle {
     var radius: CGFloat = 14
 
@@ -208,8 +271,7 @@ struct GlassButtonStyle: ButtonStyle {
             .foregroundStyle(.primary)
             .padding(.horizontal, 16)
             .padding(.vertical, 11)
-            .glass(radius: radius, material: .thinMaterial)
-            .opacity(configuration.isPressed ? 0.75 : 1)
+            .glass(radius: radius, material: .thinMaterial, interactive: true)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(.spring(response: 0.25, dampingFraction: 0.7),
                        value: configuration.isPressed)

@@ -17,11 +17,23 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: 쓸 수 있는 Xcode 확인
-        # 리퀴드 글래스(iOS 26) 를 쓰려면 Xcode 26 이 있어야 한다. 뭐가 깔려 있는지 본다
+      - name: Xcode 고르기
+        # 리퀴드 글래스는 iOS 26 SDK 로만 컴파일된다. 즉 Xcode 26 이 있어야 한다.
+        # 깃허브 액션 로그는 로그인해야 보이므로, 뭘 골랐는지 주석으로도 남긴다.
         run: |
-          ls /Applications | grep -i xcode || true
-          xcodebuild -version
+          LIST=$(ls -d /Applications/Xcode*.app 2>/dev/null | tr '\n' ' ')
+          echo "깔려 있는 Xcode: $LIST"
+          NEWEST=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$NEWEST" ]; then
+            sudo xcode-select -s "$NEWEST/Contents/Developer"
+          fi
+          VER=$(xcodebuild -version | head -1)
+          SDK=$(xcodebuild -showsdks 2>/dev/null | grep -o 'iphoneos[0-9.]*' | tail -1)
+          echo "고른 것: $VER (SDK $SDK)"
+          echo "::notice title=Xcode::$VER · SDK $SDK · 깔린 것 [$LIST]"
+          # 리퀴드 글래스를 쓸 수 있는지 뒷단계에서 쓰려고 남긴다
+          MAJOR=$(echo "$VER" | grep -o '[0-9]\+' | head -1)
+          echo "XCODE_MAJOR=$MAJOR" >> "$GITHUB_ENV"
 
       - name: XcodeGen 설치
         run: brew install xcodegen

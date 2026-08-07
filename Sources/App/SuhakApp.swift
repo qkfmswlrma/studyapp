@@ -5,7 +5,13 @@ struct SuhakApp: App {
     @StateObject private var store = Store()
 
     init() {
-        // 탭 막대도 유리로. 기본값은 불투명해서 뒤가 안 비친다.
+        // iOS 26 은 탭 막대와 제목줄을 스스로 리퀴드 글래스로 그린다.
+        // 여기서 손대면 그걸 덮어써서 오히려 옛날 모양이 된다. 건드리지 않는다.
+        #if compiler(>=6.2)
+        if #available(iOS 26.0, *) { return }
+        #endif
+
+        // iOS 25 이하에서만 손으로 유리를 깐다. 기본값은 불투명해서 뒤가 안 비친다.
         let tab = UITabBarAppearance()
         tab.configureWithTransparentBackground()
         tab.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterial)

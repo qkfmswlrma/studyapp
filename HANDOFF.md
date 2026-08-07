@@ -214,6 +214,74 @@ xcrun simctl io booted screenshot shot.png
 
 ---
 
+## 5. 네이티브 1단계 — 지금까지 짠 것
+
+`main` 브랜치가 이제 SwiftUI 앱이다. Capacitor 는 `capacitor` 브랜치로 옮겼다.
+
+### 짜놓은 파일
+
+```
+project.yml                     XcodeGen 설정. 맥에서 xcodegen generate 하면 .xcodeproj 가 나온다
+Sources/
+  App/SuhakApp.swift            @main, 탭 구성, 제목줄, 시작 화면
+  Core/
+    Supa.swift                  Supabase 붙이기, 읽기와 쓰기
+    Models.swift                Profile Post Exam Question Submission 그리고 정답률
+    JSONValue.swift             답이 숫자이기도 글자이기도 해서 필요한 그릇
+    Grading.swift               채점 규칙. 사이트와 서버 함수에 맞췄다
+    Store.swift                 앱 상태 한곳에. 화면마다 따로 불러오면 숫자가 달라진다
+    Theme.swift                 색, 유리, 단추
+  UI/MathText.swift             SwiftMath 로 수식 그리기, 본문 조각 배치
+  Features/
+    AuthSheet.swift             로그인, 회원가입
+    Posts.swift                 홈, 칼럼과 공지 목록과 글
+    Exams.swift                 시험 목록, 응시, 채점 결과
+    RecordsAccount.swift        내 기록, 오답노트, 계정
+```
+
+### 확인된 것
+
+- 맥에서 컴파일된다 (run #5, 5분 37초, 5.8MB 짜리 앱이 나왔다)
+- XcodeGen 으로 프로젝트가 만들어진다
+- supabase-swift 2.54.1 과 SwiftMath 1.7.3 이 붙는다
+
+### 아직 확인 못 한 것
+
+**화면을 눈으로 못 봤다.** CI 에서 시뮬레이터를 켜고 찍어 `screenshots` 가지에
+올리도록 해뒀으니 그걸 먼저 볼 것.
+
+**실제 데이터로 안 돌려봤다.** 시뮬레이터에서 진짜 Supabase 에 붙는지,
+목록이 뜨는지, 로그인이 되는지 확인이 필요하다. 특히 이런 것들이 의심스럽다.
+
+- 날짜 읽기. Postgres 의 timestamptz 는 소수 자리가 있을 때도 없을 때도 있다
+- `exams_view` 에서 questions 가 jsonb 인데 스위프트가 제대로 읽는지
+- `answers` 안에 숫자와 글자가 섞여 있는 것
+
+### 남은 것
+
+**1단계 마무리**
+- 시험 목록에서 안 읽음 표시
+- 비회원 응시 (`submit_guest_attempt` 함수를 부른다)
+- 계정: 비번 바꾸기, 카톡 닉네임, 탈퇴 (`delete_my_account`)
+- 글번호로 여는 길 (`no` 와 `prev_nos` 로 찾기)
+
+**2단계** — 모의고사 기록과 통계와 타이머, 게임과 랭킹
+
+**3단계** — 관리자: 출제, 채점, 회원 관리
+수식 입력기(MathLive 대신 쓸 것)를 여기서 정해야 한다
+
+### 유리에 대해
+
+iOS 26 은 `glassEffect` 를, 그 아래는 Material 을 쓴다.
+`compiler(>=6.2)` 로 감싸서 Xcode 26 이 없는 곳에서도 컴파일된다.
+
+- 유리는 뒤에 볼 게 있어야 유리다. `AppBackground` 가 색덩어리를 깔아준다
+- 가까이 붙은 유리는 `GlassGroup` 으로 묶어야 서로 녹아 붙는다
+- 탭 막대와 제목줄은 iOS 26 이 스스로 그린다. 손대면 옛날 모양이 된다
+- 가장 중요한 단추는 유리로 하지 않는다. 꽉 찬 색으로 둔다
+
+---
+
 ## 4. 사이트 저장소는 건드리지 않았다
 
 `../수학` 은 읽기만 했다. 커밋도 푸시도 하지 않았다.

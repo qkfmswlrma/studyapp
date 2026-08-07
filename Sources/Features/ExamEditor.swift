@@ -415,18 +415,5 @@ struct BodyEditor: View {
 
 extension Question {
     /// 새 문항. id 는 앱이 붙인다. 채점이 이 값으로 답을 찾는다.
-    static func blank() -> Question {
-        let json = """
-        {"id":"\(UUID().uuidString.prefix(8))","type":"mc","points":0,
-         "body":[],"options":["",""]}
-        """
-        // 스스로 만든 JSON 이라 실패할 일이 없지만, 실패해도 앱이 죽지 않게 둔다.
-        if let data = json.data(using: .utf8),
-           let q = try? JSONDecoder().decode(Question.self, from: data) {
-            return q
-        }
-        return (try? JSONDecoder().decode(
-            Question.self,
-            from: Data(#"{"id":"q","type":"mc","points":0}"#.utf8)))!
-    }
+    static func blank() -> Question { Question() }
 }

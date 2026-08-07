@@ -176,6 +176,26 @@ struct Question: Codable, Identifiable, Hashable {
         case id, type, points, body, options, image, answer, accept, explain, latex, text
     }
 
+    /// 새로 만들 때. 사용자 정의 init(from:) 이 있으면 기본 생성자가 안 만들어져서 여기 둔다.
+    /// **id 는 채점이 답을 찾는 열쇠다.** 문항마다 달라야 한다.
+    init(id: String = String(UUID().uuidString.prefix(8)),
+         type: QuestionType = .mc,
+         points: Double = 0,
+         body: [BodyBlock] = [],
+         options: [String] = ["", ""]) {
+        self.id = id
+        self.type = type
+        self.points = points
+        self.body = body
+        self.options = options
+        self.image = nil
+        self.answer = nil
+        self.accept = nil
+        self.explain = nil
+        self.latex = nil
+        self.text = nil
+    }
+
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString

@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine   // Timer.publish 와 autoconnect
 
 // ─────────────────────────────────────────────────────────
 // 스피드 연산 (무한 모드, 콤보 지수 배율)

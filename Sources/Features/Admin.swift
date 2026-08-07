@@ -175,6 +175,184 @@ struct AdminScreen: View {
     }
 }
 
+// ─────────────────────────────────────────────────────────
+// 채점
+//
+// 자동 채점으로 안 되는 것만 사람이 매긴다.
+// 사람이 매긴 점수가 있으면 그게 자동 점수보다 앞선다 (Grading.score).
+// ─────────────────────────────────────────────────────────
+
+struct GradeListScreen: View {
+    @EnvironmentObject var store: Store
+    let exam: Exam
+
+    @State private var submissions: [Submission] = []
+    @State private var loading = true
+
+    var body: some View {
+        ZStack {
+            AppBackground()
+            ScrollView {
+                VStack(spacing: 12) {
+                    if loading {
+                        EmptyNote(text: "불러오는 중…")
+                    } else if submissions.isEmpty {
+                        EmptyNote(text: "아직 제출이 없어요")
+                    } else {
+                        ForEach(submissions) { sub in
+                            NavigationLink {
+                                GradeSheet(exam: exam, submission: sub) { await load() }
+                            } label: {
+                                GlassCard(padding: 16, radius: 20) {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(sub.student.isEmpty ? "익명" : sub.student)
+                                                .font(.system(size: 15.5, weight: .heavy))
+                                                .foregroundStyle(Theme.t1)
+                                            if let date = sub.submittedAt {
+                                                Text(date, format: .dateTime.month().day().hour().minute())
+                                                    .font(.system(size: 12, weight: .semibold))
+                                                    .foregroundStyle(Theme.t3)
+                                            }
+                                        }
+                                        Spacer()
+                                        if !sub.graded {
+                                            TagPill(text: "채점 대기")
+                                        }
+                                        Text(Grading.total(exam, sub).scoreText)
+                                            .font(.system(size: 18, weight: .heavy))
+                                            .foregroundStyle(Theme.purple)
+                                    }
+                                }
+                            }
+                            .buttonStyle(PressableCardStyle())
+                        }
+                    }
+                }
+                .padding(20)
+            }
+        }
+        .navigationTitle("제출")
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await load() }
+    }
+
+    private func load() async {
+        loading = true
+        let all = (try? await Supa.allSubmissions()) ?? []
+        submissions = all.filter { $0.examId == exam.id }
+        loading = false
+    }
+}
+
+struct GradeSheet: View {
+    @EnvironmentObject var store: Store
+    @Environment(\.dismiss) private var dismiss
+
+    let exam: Exam
+    let submission: Submission
+    let onSaved: () async -> Void
+
+    @State private var scores: [String: String] = [:]
+    @State private var busy = false
+    @State private var note: String?
+
+    var body: some View {
+        ZStack {
+            AppBackground()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    ForEach(Array(exam.questions.enumerated()), id: \.element.id) { i, q in
+                        GlassCard(padding: 18) {
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
+                                    Text("\(i + 1)번")
+                                        .font(.system(size: 14.5, weight: .heavy))
+                                        .foregroundStyle(Theme.t1)
+                                    Spacer()
+                                    Text("배점 \(q.points.scoreText)")
+                                        .font(.system(size: 12.5, weight: .semibold))
+                                        .foregroundStyle(Theme.t3)
+                                }
+
+                                QuestionBodyOrLegacy(question: q)
+
+                                Text("낸 답  \(submission.answers[q.id]?.asString ?? "(미작성)")")
+                                    .font(.system(size: 13.5, weight: .bold))
+                                    .foregroundStyle(Theme.t2)
+
+                                let auto = Grading.isCorrect(q, submission.answers[q.id])
+                                Text(auto ? "자동 채점 정답" : "자동 채점 오답")
+                                    .font(.system(size: 12.5, weight: .heavy))
+                                    .foregroundStyle(auto ? Theme.green : Theme.red)
+
+                                HStack(spacing: 8) {
+                                    Text("점수 고치기")
+                                        .font(.system(size: 13, weight: .heavy))
+                                        .foregroundStyle(Theme.t3)
+                                    TextField("비우면 자동", text: Binding(
+                                        get: { scores[q.id] ?? "" },
+                                        set: { scores[q.id] = $0 }))
+                                        .keyboardType(.decimalPad)
+                                        .font(.system(size: 14, weight: .bold))
+                                        .padding(10)
+                                        .background(Theme.hairline,
+                                                    in: RoundedRectangle(cornerRadius: 10))
+                                }
+                            }
+                        }
+                    }
+
+                    if let note {
+                        Text(note)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Theme.green)
+                    }
+
+                    Button(busy ? "저장 중…" : "채점 저장") { Task { await save() } }
+                        .buttonStyle(BrandButtonStyle())
+                        .disabled(busy)
+                        .opacity(busy ? 0.6 : 1)
+                }
+                .padding(20)
+            }
+        }
+        .navigationTitle(submission.student.isEmpty ? "채점" : submission.student)
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            for (key, value) in submission.manualScores where !value.isEmpty {
+                scores[key] = value.asString
+            }
+        }
+    }
+
+    private func save() async {
+        busy = true
+        defer { busy = false }
+
+        // 빈 칸은 아예 넣지 않는다. 넣으면 자동 채점을 덮어써서 0점이 된다.
+        var out: [String: JSONValue] = [:]
+        for q in exam.questions {
+            let raw = (scores[q.id] ?? "").trimmingCharacters(in: .whitespaces)
+            guard !raw.isEmpty, let v = Double(raw) else { continue }
+            out[q.id] = .double(max(0, min(q.points, v)))
+        }
+
+        do {
+            try await Supa.gradeSubmission(id: submission.id, scores: out)
+            if let me = store.profile {
+                try? await Supa.log(action: "채점 수정", target: submission.student,
+                                    actor: me.username, actorId: me.id)
+            }
+            note = "채점을 저장했어요"
+            await onSaved()
+            dismiss()
+        } catch {
+            note = store.message(for: error)
+        }
+    }
+}
+
 /// 회원 한 줄. root 에게만 보이는 화면 안에 있다.
 struct MemberRow: View {
     @EnvironmentObject var store: Store

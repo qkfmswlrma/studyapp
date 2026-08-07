@@ -52,6 +52,26 @@ final class Store: ObservableObject {
         submissions.first { $0.examId == examId }
     }
 
+    /// 내가 낸 시험은 내가, 남이 낸 것은 root 만 고친다.
+    /// 서버 정책도 같아서 앱이 잘못 불러도 거절당한다.
+    func canEdit(_ exam: Exam) -> Bool {
+        guard isAdmin else { return false }
+        return isRoot || exam.authorId == profile?.id
+    }
+
+    func deleteExam(_ exam: Exam) async {
+        do {
+            try await Supa.deleteExam(id: exam.id)
+            exams.removeAll { $0.id == exam.id }
+            if let me = profile {
+                try? await Supa.log(action: "시험 삭제", target: exam.title,
+                                    actor: me.username, actorId: me.id)
+            }
+        } catch {
+            errorText = friendly(error)
+        }
+    }
+
     // ── 불러오기 ────────────────────────────────────────
 
     func bootstrap() async {

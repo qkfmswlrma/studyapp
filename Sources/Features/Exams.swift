@@ -104,6 +104,9 @@ struct ExamListScreen: View {
     @EnvironmentObject var store: Store
     let type: ExamType
 
+    @State private var writing = false
+    @State private var editing: Exam?
+
     var body: some View {
         ZStack {
             AppBackground()
@@ -119,6 +122,19 @@ struct ExamListScreen: View {
                                         solved: store.mySubmission(examId: exam.id) != nil)
                             }
                             .buttonStyle(PressableCardStyle())
+                            .contextMenu {
+                                if store.isAdmin {
+                                    NavigationLink("제출 보기") { GradeListScreen(exam: exam) }
+                                }
+                                // 남이 낸 시험은 root 만 고칠 수 있다.
+                                // 서버 정책도 같아서 앱이 잘못 불러도 거절당한다.
+                                if store.canEdit(exam) {
+                                    Button("고치기") { editing = exam }
+                                    Button("지우기", role: .destructive) {
+                                        Task { await store.deleteExam(exam) }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -128,6 +144,22 @@ struct ExamListScreen: View {
         }
         .navigationTitle(type.label)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if store.isAdmin {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { writing = true } label: {
+                        Image(systemName: "square.and.pencil")
+                            .foregroundStyle(Theme.purple)
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $writing) {
+            ExamEditorSheet(exam: nil, defaultType: type)
+        }
+        .sheet(item: $editing) { exam in
+            ExamEditorSheet(exam: exam, defaultType: type)
+        }
     }
 
     private var items: [Exam] { store.exams(of: type) }

@@ -274,6 +274,25 @@ struct AccountScreen: View {
                             .foregroundStyle(noteIsError ? Theme.red : Theme.green)
                     }
 
+                    // 관리자가 아니면 이 줄 자체가 없다.
+                    // "권한이 없습니다" 같은 안내를 띄우지 않는다.
+                    if store.isAdmin {
+                        NavigationLink { AdminScreen() } label: {
+                            GlassCard(padding: 16) {
+                                HStack {
+                                    Text("관리자")
+                                        .font(.system(size: 15, weight: .heavy))
+                                        .foregroundStyle(Theme.t1)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundStyle(Theme.t3)
+                                }
+                            }
+                        }
+                        .buttonStyle(PressableCardStyle())
+                    }
+
                     Button("로그아웃") {
                         Task {
                             await store.signOut()

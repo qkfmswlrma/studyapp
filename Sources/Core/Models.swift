@@ -304,6 +304,58 @@ struct NewSubmission: Encodable {
 }
 
 // ─────────────────────────────────────────────────────────
+// 출제
+// ─────────────────────────────────────────────────────────
+
+/// 새 시험. 글번호는 서버 트리거가 붙이므로 보내지 않는다.
+struct ExamInput: Encodable {
+    let title: String
+    let questions: [Question]
+    let author: String
+    let author_id: UUID
+    let exam_type: String
+    let publish_at: Date?
+}
+
+/// 고칠 때. 글쓴이는 바꾸지 않는다.
+struct ExamPatch: Encodable {
+    let title: String
+    let questions: [Question]
+    let exam_type: String
+    let publish_at: Date?
+}
+
+// ─────────────────────────────────────────────────────────
+// 활동 기록
+// ─────────────────────────────────────────────────────────
+
+struct AuditEntry: Codable, Identifiable, Hashable {
+    let id: UUID
+    var actor: String
+    var action: String
+    var target: String
+    var createdAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id, actor, action, target
+        case createdAt = "created_at"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        actor = (try? c.decodeIfPresent(String.self, forKey: .actor)) as? String ?? ""
+        action = (try? c.decodeIfPresent(String.self, forKey: .action)) as? String ?? ""
+        target = (try? c.decodeIfPresent(String.self, forKey: .target)) as? String ?? ""
+        createdAt = try? c.decodeIfPresent(Date.self, forKey: .createdAt)
+    }
+
+    /// 회원 관리 기록. 일반 관리자에게는 걸러서 보여준다.
+    static let memberActions = ["관리자 지정", "관리자 해제", "회원 삭제", "비밀번호 초기화"]
+    var isMemberAction: Bool { AuditEntry.memberActions.contains(action) }
+}
+
+// ─────────────────────────────────────────────────────────
 // 정답률. 앱에서 계산하지 않고 서버 함수가 준 값을 그대로 쓴다.
 // 학생은 남의 제출을 못 읽어서 앱에서 세면 자기 것만 반영된다.
 // ─────────────────────────────────────────────────────────

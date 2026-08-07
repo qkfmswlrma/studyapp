@@ -319,7 +319,7 @@ struct AccountScreen: View {
     private func tamguPicker(_ label: String, selection: Binding<String>) -> some View {
         Picker(label, selection: selection) {
             Text("고르지 않음").tag("")
-            ForEach(TAMGU_CHOICES, id: \.group) { choice in
+            ForEach(TAMGU_CHOICES) { choice in
                 Section(choice.group) {
                     ForEach(choice.items, id: \.self) { Text($0).tag($0) }
                 }

@@ -335,6 +335,106 @@ extension Supa {
     }
 }
 
+// ─────────────────────────────────────────────────────────
+// 관리자
+//
+// 화면에서 감추는 것과 실제로 막는 것은 다르다.
+// 여기 있는 것들은 전부 서버가 is_admin() 과 is_root() 로 한 번 더 판정한다.
+// 앱이 잘못 불러도 서버가 거절한다.
+// ─────────────────────────────────────────────────────────
+
+extension Supa {
+
+    /// 회원 목록. 정책이 관리자에게만 남의 프로필을 보여준다.
+    static func allProfiles() async throws -> [Profile] {
+        try await client.from("profiles")
+            .select()
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+    }
+
+    /// 제출 전체. 채점 화면이 쓴다.
+    static func allSubmissions() async throws -> [Submission] {
+        try await client.from("submissions")
+            .select()
+            .order("submitted_at", ascending: false)
+            .execute()
+            .value
+    }
+
+    static func auditLog(limit: Int = 200) async throws -> [AuditEntry] {
+        try await client.from("audit_log")
+            .select()
+            .order("created_at", ascending: false)
+            .limit(limit)
+            .execute()
+            .value
+    }
+
+    static func log(action: String, target: String, actor: String, actorId: UUID) async throws {
+        struct Row: Encodable {
+            let actor: String
+            let actor_id: UUID
+            let action: String
+            let target: String
+        }
+        try await client.from("audit_log")
+            .insert(Row(actor: actor, actor_id: actorId, action: action, target: target))
+            .execute()
+    }
+
+    // ── 출제 ────────────────────────────────────────────
+    //
+    // 쓸 때는 exams 표에 직접 넣는다. exams_view 는 읽기 전용이다.
+
+    static func saveExam(_ input: ExamInput) async throws {
+        try await client.from("exams").insert(input).execute()
+    }
+
+    static func updateExam(id: UUID, _ input: ExamPatch) async throws {
+        try await client.from("exams").update(input).eq("id", value: id).execute()
+    }
+
+    static func deleteExam(id: UUID) async throws {
+        try await client.from("exams").delete().eq("id", value: id).execute()
+    }
+
+    /// 사람이 매긴 점수를 저장한다.
+    static func gradeSubmission(id: UUID, scores: [String: JSONValue]) async throws {
+        struct Patch: Encodable {
+            let manual_scores: [String: JSONValue]
+            let graded: Bool
+        }
+        try await client.from("submissions")
+            .update(Patch(manual_scores: scores, graded: true))
+            .eq("id", value: id)
+            .execute()
+    }
+
+    // ── 회원 관리 (root 전용) ───────────────────────────
+    //
+    // 이 화면 자체를 root 에게만 보여준다. 서버도 is_root() 로 막는다.
+
+    static func setAdmin(username: String, on: Bool) async throws {
+        struct Patch: Encodable { let is_admin: Bool }
+        try await client.from("profiles")
+            .update(Patch(is_admin: on))
+            .eq("username", value: username)
+            .execute()
+    }
+
+    static func deleteUser(username: String) async throws {
+        try await client.rpc("admin_delete_user",
+                             params: ["p_username": username]).execute()
+    }
+
+    static func resetPassword(username: String) async throws {
+        try await client.rpc("admin_reset_password",
+                             params: ["p_username": username]).execute()
+    }
+}
+
 enum AppError: LocalizedError {
     case message(String)
     var errorDescription: String? {

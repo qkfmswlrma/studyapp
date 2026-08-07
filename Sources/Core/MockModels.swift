@@ -58,11 +58,20 @@ enum TamguNames {
     }
 }
 
-let TAMGU_CHOICES: [(group: String, items: [String])] = [
-    ("사회탐구", ["생활과 윤리", "윤리와 사상", "한국지리", "세계지리", "동아시아사",
-                "세계사", "경제", "정치와 법", "사회·문화"]),
-    ("과학탐구", ["물리학Ⅰ", "화학Ⅰ", "생명과학Ⅰ", "지구과학Ⅰ",
-                "물리학Ⅱ", "화학Ⅱ", "생명과학Ⅱ", "지구과학Ⅱ"]),
+/// 튜플에는 키패스를 못 걸어서 ForEach 가 못 쓴다. 구조체로 둔다.
+struct TamguGroup: Identifiable, Hashable {
+    let group: String
+    let items: [String]
+    var id: String { group }
+}
+
+let TAMGU_CHOICES: [TamguGroup] = [
+    .init(group: "사회탐구",
+          items: ["생활과 윤리", "윤리와 사상", "한국지리", "세계지리", "동아시아사",
+                  "세계사", "경제", "정치와 법", "사회·문화"]),
+    .init(group: "과학탐구",
+          items: ["물리학Ⅰ", "화학Ⅰ", "생명과학Ⅰ", "지구과학Ⅰ",
+                  "물리학Ⅱ", "화학Ⅱ", "생명과학Ⅱ", "지구과학Ⅱ"]),
 ]
 
 /// 평가원과 교육청 시험은 누가 봐도 같으니 처음부터 깔아둔다.

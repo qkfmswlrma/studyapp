@@ -70,9 +70,9 @@ struct AppBackground: View {
         ZStack {
             LinearGradient(
                 stops: [
-                    .init(color: Color(light: 0xF4E9FF, dark: 0x161226), location: 0),
-                    .init(color: Color(light: 0xFDE9F4, dark: 0x1E1730), location: 0.46),
-                    .init(color: Color(light: 0xE9EEFF, dark: 0x141726), location: 1),
+                    .init(color: Color(light: 0xEADCFF, dark: 0x161226), location: 0),
+                    .init(color: Color(light: 0xFFDCEF, dark: 0x1E1730), location: 0.46),
+                    .init(color: Color(light: 0xD9E3FF, dark: 0x141726), location: 1),
                 ],
                 startPoint: .top, endPoint: .bottom)
 
@@ -80,12 +80,17 @@ struct AppBackground: View {
                 let w = geo.size.width
                 let h = geo.size.height
 
-                blob(Theme.purple, size: w * 1.05)
-                    .position(x: w * 0.18, y: h * 0.12)
-                blob(Theme.pink, size: w * 0.95)
-                    .position(x: w * 0.92, y: h * 0.34)
-                blob(Theme.blue, size: w * 1.1)
-                    .position(x: w * 0.55, y: h * 0.86)
+                // 카드가 놓이는 자리(위쪽 3분의 1)를 일부러 가로지르게 둔다.
+                // 유리는 뒤에 색이 변하는 곳을 지나가야 유리로 보인다.
+                // 배경이 고르면 굴절시킬 게 없어서 그냥 허연 판이 된다.
+                blob(Theme.purple, size: w * 1.25)
+                    .position(x: w * 0.05, y: h * 0.10)
+                blob(Theme.pink, size: w * 1.05)
+                    .position(x: w * 1.00, y: h * 0.30)
+                blob(Theme.blue, size: w * 1.30)
+                    .position(x: w * 0.35, y: h * 0.62)
+                blob(Theme.purple, size: w * 0.9)
+                    .position(x: w * 0.95, y: h * 0.88)
             }
             .ignoresSafeArea()
         }
@@ -96,9 +101,9 @@ struct AppBackground: View {
         Circle()
             .fill(color)
             .frame(width: size, height: size)
-            // 밝은 화면에서는 은은하게, 어두운 화면에서는 더 죽인다
-            .opacity(scheme == .dark ? 0.20 : 0.34)
-            .blur(radius: size * 0.28)
+            // 밝은 화면에서 옅게 깔면 유리가 배경에 묻힌다. 진하게 둔다.
+            .opacity(scheme == .dark ? 0.26 : 0.55)
+            .blur(radius: size * 0.30)
     }
 }
 

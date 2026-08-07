@@ -34,16 +34,32 @@ struct HomeScreen: View {
                         }
                         .padding(.horizontal, 20)
 
-                        VStack(spacing: 10) {
-                            shortcut("공지사항", "\(store.notices.count)개의 글",
-                                     "megaphone.fill", Theme.pink)
-                            shortcut("칼럼", store.loggedIn
-                                     ? "\(store.columns(nil).count)개의 글" : "회원만 볼 수 있어요",
-                                     "book.fill", Theme.purple)
-                            shortcut("시험", "\(store.exams.count)개의 시험",
-                                     "pencil.and.list.clipboard", Theme.blue)
+                        // 가까이 붙은 유리끼리 서로 녹아 붙게 한 덩어리로 묶는다
+                        GlassGroup(spacing: 10) {
+                            VStack(spacing: 10) {
+                                shortcut("공지사항", "\(store.notices.count)개의 글",
+                                         "megaphone.fill", Theme.pink)
+                                shortcut("칼럼", store.loggedIn
+                                         ? "\(store.columns(nil).count)개의 글" : "회원만 볼 수 있어요",
+                                         "book.fill", Theme.purple)
+                                shortcut("시험", "\(store.exams.count)개의 시험",
+                                         "list.clipboard.fill", Theme.blue)
+                            }
                         }
                         .padding(.horizontal, 20)
+
+                        if !store.notices.isEmpty {
+                            sectionTitle("최근 공지")
+                            ForEach(store.notices.prefix(3)) { post in
+                                NavigationLink {
+                                    PostDetailScreen(post: post)
+                                } label: {
+                                    PostRow(post: post)
+                                }
+                                .buttonStyle(PressableCardStyle())
+                                .padding(.horizontal, 20)
+                            }
+                        }
 
                         if let err = store.errorText {
                             Text(err)
@@ -57,6 +73,14 @@ struct HomeScreen: View {
                 .refreshable { await store.reload() }
             }
         }
+    }
+
+    private func sectionTitle(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 14, weight: .heavy))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 22)
+            .padding(.top, 6)
     }
 
     private func shortcut(_ title: String, _ sub: String,

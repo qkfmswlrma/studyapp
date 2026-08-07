@@ -94,7 +94,7 @@ jobs:
           du -sh "$APP/public"
           echo "::notice title=빌드 완료::$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$APP/Info.plist") $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist") · 웹 자산 $(du -sh "$APP/public" | cut -f1)"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: suhakjilmoon-ios
           path: |

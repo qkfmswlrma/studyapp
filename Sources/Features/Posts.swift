@@ -14,10 +14,6 @@ struct HomeScreen: View {
                 AppBackground()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
-                        ScreenHeader(title: "수학질문방") {
-                            AccountButton(authOpen: $authOpen)
-                        }
-
                         GlassCard {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(store.loggedIn
@@ -34,17 +30,14 @@ struct HomeScreen: View {
                         }
                         .padding(.horizontal, 20)
 
-                        // 가까이 붙은 유리끼리 서로 녹아 붙게 한 덩어리로 묶는다
-                        GlassGroup(spacing: 10) {
-                            VStack(spacing: 10) {
-                                shortcut("공지사항", "\(store.notices.count)개의 글",
-                                         "megaphone.fill", Theme.pink)
-                                shortcut("칼럼", store.loggedIn
-                                         ? "\(store.columns(nil).count)개의 글" : "회원만 볼 수 있어요",
-                                         "book.fill", Theme.purple)
-                                shortcut("시험", "\(store.exams.count)개의 시험",
-                                         "list.clipboard.fill", Theme.blue)
-                            }
+                        VStack(spacing: 10) {
+                            shortcut("공지사항", "\(store.notices.count)개의 글",
+                                     "megaphone.fill", Theme.pink)
+                            shortcut("칼럼", store.loggedIn
+                                     ? "\(store.columns(nil).count)개의 글" : "회원만 볼 수 있어요",
+                                     "book.fill", Theme.purple)
+                            shortcut("시험", "\(store.exams.count)개의 시험",
+                                     "list.clipboard.fill", Theme.blue)
                         }
                         .padding(.horizontal, 20)
 
@@ -71,6 +64,7 @@ struct HomeScreen: View {
                     .padding(.bottom, 24)
                 }
                 .refreshable { await store.reload() }
+                .floatingHeader("수학질문방") { AccountButton(authOpen: $authOpen) }
             }
         }
     }
@@ -137,8 +131,6 @@ struct PostListScreen: View {
                 } else {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 12) {
-                            ScreenHeader(title: kind.title) { EmptyView() }
-
                             if kind == .column {
                                 categoryPicker
                                     .padding(.horizontal, 20)
@@ -164,6 +156,7 @@ struct PostListScreen: View {
                     .refreshable { await store.reload() }
                 }
             }
+            .floatingHeader(kind.title) { EmptyView() }
         }
     }
 

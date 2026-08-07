@@ -11,8 +11,6 @@ struct ExamChooserScreen: View {
                 AppBackground()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
-                        ScreenHeader(title: "시험") { EmptyView() }
-
                         VStack(spacing: 12) {
                             NavigationLink {
                                 ExamListScreen(type: .level)
@@ -32,6 +30,7 @@ struct ExamChooserScreen: View {
                     }
                     .padding(.bottom, 24)
                 }
+                .floatingHeader("시험") { EmptyView() }
             }
         }
     }

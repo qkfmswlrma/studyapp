@@ -118,11 +118,35 @@ struct SplashView: View {
 // 화면 위쪽 제목줄
 // ─────────────────────────────────────────────────────────
 
-/// 스크롤해서 올라간 내용이 제목줄 뒤로 비쳐 지나간다.
-/// 이게 유리를 쓰는 이유다. 안 비치면 그냥 색칠한 막대다.
+extension View {
+    /// 제목줄을 내용 위에 띄운다.
+    ///
+    /// 내용 안에 같이 넣으면 같이 스크롤돼서 유리를 쓸 이유가 없어진다.
+    /// 떠 있어야 카드가 그 뒤로 지나가고, 그때 유리가 내용을 굴절시킨다.
+    /// 이게 리퀴드 글래스를 쓰는 이유다.
+    func floatingHeader<T: View>(_ title: String,
+                                 @ViewBuilder trailing: () -> T) -> some View {
+        safeAreaInset(edge: .top, spacing: 0) {
+            ScreenHeader(title: title, trailing: trailing())
+                .padding(.horizontal, 14)
+                .padding(.bottom, 6)
+        }
+    }
+}
+
 struct ScreenHeader<Trailing: View>: View {
     let title: String
-    @ViewBuilder var trailing: Trailing
+    var trailing: Trailing
+
+    init(title: String, trailing: Trailing) {
+        self.title = title
+        self.trailing = trailing
+    }
+
+    init(title: String, @ViewBuilder trailing: () -> Trailing) {
+        self.title = title
+        self.trailing = trailing()
+    }
 
     var body: some View {
         HStack(spacing: 11) {
@@ -148,8 +172,10 @@ struct ScreenHeader<Trailing: View>: View {
             Spacer()
             trailing
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 11)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        // 여기가 유리다. 카드가 이 뒤로 지나간다.
+        .glass(radius: 30)
     }
 }
 

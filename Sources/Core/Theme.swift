@@ -28,6 +28,11 @@ enum Theme {
 
     static let radius: CGFloat = 22
 
+    /// 내용 카드의 바닥. 유리가 아니라 판이다.
+    /// 아주 살짝만 비쳐서 뒤 색이 배어 나오되 글은 또렷하게 읽힌다.
+    static let surface = Color(light: 0xFFFFFF, dark: 0x201B31).opacity(0.82)
+    static let hairline = Color(light: 0x6B4E9E, dark: 0xFFFFFF).opacity(0.10)
+
     static func rateColor(_ rate: Double) -> Color {
         switch rate {
         case ..<0.3: return red
@@ -245,12 +250,21 @@ struct GlassGroup<Content: View>: View {
     }
 }
 
-/// 목록에 쓰는 유리 카드
+/// 내용 카드.
+///
+/// **유리가 아니다.** 애플은 화면을 두 층으로 나눈다.
+///   내용 층 — 실제 읽을 것. 또렷해야 한다
+///   유리 층 — 그 위에 떠 있는 탐색과 조작 요소. 아래 내용을 굴절시킨다
+///
+/// 목록 카드까지 유리로 만들면 유리가 굴절시킬 내용이 없어져서 허옇게 뜬 판이 겹친다.
+/// 애플 문서도 "화면에 동시에 올리는 유리 수를 제한하라" 고 못박는다.
+/// 그래서 카드는 안 비치는 판으로 두고, 유리는 제목줄과 탭 막대에만 쓴다.
+///
+/// 이름은 예전 그대로 둔다. 부르는 곳이 많아서 바꾸면 다 고쳐야 한다.
 struct GlassCard<Content: View>: View {
     var padding: CGFloat = 20
     var radius: CGFloat = Theme.radius
     var material: Material = .ultraThinMaterial
-    /// 글이 빽빽해서 뒤가 비치면 읽기 힘든 곳만 켠다
     var frosted: Bool = false
     @ViewBuilder var content: Content
 
@@ -258,7 +272,13 @@ struct GlassCard<Content: View>: View {
         content
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .glass(radius: radius, material: material, frosted: frosted)
+            .background(
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .fill(Theme.surface))
+            .overlay(
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .strokeBorder(Theme.hairline, lineWidth: 0.5))
+            .shadow(color: Color(hex: 0x3B1E63).opacity(0.07), radius: 14, y: 6)
     }
 }
 

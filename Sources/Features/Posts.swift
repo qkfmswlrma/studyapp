@@ -297,16 +297,23 @@ struct PostDetailScreen: View {
 /// 사진은 따로 뽑아서 아래에 붙인다. HTML 변환기에 맡기면 사진을 받아오는 동안 화면이 멈춘다.
 struct HTMLBodyView: View {
     let html: String
-    @State private var text: AttributedString?
     @State private var images: [URL] = []
+
+    /// 수식이 든 글만 조각내어 그린다.
+    /// 수식이 없는 글은 지금처럼 통째로 두는 쪽이 줄간격과 띄어쓰기가 자연스럽다.
+    private var blocks: [BodyBlock]? {
+        let parsed = HTMLBodyView.blocks(html)
+        let hasMath = parsed.contains { block in
+            if case .math = block { return true }
+            return false
+        }
+        return hasMath ? parsed : nil
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if let text {
-                Text(text)
-                    .font(.system(size: 15.5))
-                    .foregroundStyle(Theme.t1)
-                    .textSelection(.enabled)
+            if let blocks {
+                QuestionBodyView(blocks, fontSize: 15.5)
             } else {
                 Text(HTMLBodyView.plain(html))
                     .font(.system(size: 15.5))
@@ -332,6 +339,81 @@ struct HTMLBodyView: View {
         images = HTMLBodyView.imageURLs(html)
     }
 
+    // ── 수식 칩 ─────────────────────────────────────────
+    //
+    // 편집기는 수식을 이렇게 넣는다.
+    //
+    //     <span class="mchip" data-latex="x^2"> …KaTeX 가 만든 조각… </span>
+    //
+    // 안쪽 KaTeX 조각에는 같은 수식이 MathML 로도 글자로도 들어 있어서,
+    // 태그만 벗기면 "x2x^2x2" 처럼 겹쳐 나온다. **안쪽은 통째로 버리고
+    // data-latex 만 쓴다.** 사이트의 본문 파서도 칩 안으로는 들어가지 않는다.
+
+    private static let chipOpen = try? NSRegularExpression(
+        pattern: "<span[^>]*class=\"[^\"]*mchip[^\"]*\"[^>]*>",
+        options: .caseInsensitive)
+
+    static func blocks(_ html: String) -> [BodyBlock] {
+        guard let re = chipOpen else { return [.text(plain(html))] }
+        let ns = html as NSString
+        var out: [BodyBlock] = []
+        var cursor = 0
+
+        for m in re.matches(in: html, range: NSRange(location: 0, length: ns.length)) {
+            // 앞선 칩 안에 들어 있던 것은 이미 건너뛴 자리다
+            guard m.range.location >= cursor else { continue }
+
+            let before = plain(ns.substring(with: NSRange(
+                location: cursor, length: m.range.location - cursor)))
+            if !before.isEmpty { out.append(.text(before)) }
+
+            out.append(.math(latexAttribute(ns.substring(with: m.range))))
+            cursor = endOfSpan(ns, from: m.range.location + m.range.length)
+        }
+
+        if cursor < ns.length {
+            let tail = plain(ns.substring(from: cursor))
+            if !tail.isEmpty { out.append(.text(tail)) }
+        }
+        return out
+    }
+
+    /// 여는 `<span>` 에서 data-latex 값을 꺼낸다.
+    private static func latexAttribute(_ tag: String) -> String {
+        let ns = tag as NSString
+        guard let re = try? NSRegularExpression(pattern: "data-latex=\"([^\"]*)\"",
+                                                options: .caseInsensitive),
+              let m = re.firstMatch(in: tag, range: NSRange(location: 0, length: ns.length)),
+              m.numberOfRanges > 1
+        else { return "" }
+        return unescape(ns.substring(with: m.range(at: 1)))
+    }
+
+    /// 칩을 닫는 `</span>` 뒤의 자리. KaTeX 조각 안에 `<span>` 이 겹겹이 있어서
+    /// 처음 만나는 닫는 태그를 쓰면 안 되고 깊이를 세야 한다.
+    private static func endOfSpan(_ ns: NSString, from start: Int) -> Int {
+        var depth = 1
+        var i = start
+        while i < ns.length && depth > 0 {
+            let rest = NSRange(location: i, length: ns.length - i)
+            let open = ns.range(of: "<span", options: .caseInsensitive, range: rest)
+            let close = ns.range(of: "</span", options: .caseInsensitive, range: rest)
+            if close.location == NSNotFound { return ns.length }
+
+            if open.location != NSNotFound && open.location < close.location {
+                depth += 1
+                i = open.location + open.length
+            } else {
+                depth -= 1
+                let after = NSRange(location: close.location,
+                                    length: ns.length - close.location)
+                let gt = ns.range(of: ">", range: after)
+                i = gt.location == NSNotFound ? ns.length : gt.location + 1
+            }
+        }
+        return i
+    }
+
     /// 아주 단순한 태그 벗기기. 편집기가 내는 범위만 다룬다.
     static func plain(_ html: String) -> String {
         var s = html
@@ -347,11 +429,18 @@ struct HTMLBodyView: View {
         }
         s = s.replacingOccurrences(of: "<[^>]+>", with: "",
                                    options: [.regularExpression])
-        for (entity, char) in [("&nbsp;", " "), ("&amp;", "&"), ("&lt;", "<"),
-                               ("&gt;", ">"), ("&quot;", "\""), ("&#39;", "'")] {
+        return unescape(s).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// `&amp;` 같은 표기를 원래 글자로 되돌린다.
+    /// data-latex 도 같은 식으로 적혀 있어서 수식에도 쓴다.
+    static func unescape(_ text: String) -> String {
+        var s = text
+        for (entity, char) in [("&nbsp;", " "), ("&lt;", "<"), ("&gt;", ">"),
+                               ("&quot;", "\""), ("&#39;", "'"), ("&amp;", "&")] {
             s = s.replacingOccurrences(of: entity, with: char)
         }
-        return s.trimmingCharacters(in: .whitespacesAndNewlines)
+        return s
     }
 
     static func imageURLs(_ html: String) -> [URL] {

@@ -37,16 +37,7 @@ struct SuhakApp: App {
 struct RootView: View {
     @EnvironmentObject var store: Store
     @State private var authOpen = false
-    @State private var tab = RootView.startTab
-
-    /// CI 가 화면을 찍을 때 탭을 골라 켤 수 있게 한다.
-    /// 윈도우에서는 앱을 못 띄우니, 탭마다 찍어봐야 무엇이 잘못됐는지 안다.
-    ///   xcrun simctl launch <기기> <앱> --tab 1
-    static var startTab: Int {
-        let args = ProcessInfo.processInfo.arguments
-        guard let i = args.firstIndex(of: "--tab"), i + 1 < args.count else { return 0 }
-        return Int(args[i + 1]) ?? 0
-    }
+    @State private var tab = Launch.tab
 
     var body: some View {
         ZStack {

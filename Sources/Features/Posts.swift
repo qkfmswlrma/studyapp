@@ -119,9 +119,10 @@ struct PostListScreen: View {
     @EnvironmentObject var store: Store
     let kind: PostKind
     @State private var category: PostCategory?
+    @State private var path = NavigationPath()
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ZStack {
                 AppBackground()
 
@@ -141,9 +142,7 @@ struct PostListScreen: View {
                                     .padding(.horizontal, 20)
                             } else {
                                 ForEach(items) { post in
-                                    NavigationLink {
-                                        PostDetailScreen(post: post)
-                                    } label: {
+                                    NavigationLink(value: post) {
                                         PostRow(post: post)
                                     }
                                     .buttonStyle(.plain)
@@ -157,6 +156,13 @@ struct PostListScreen: View {
                 }
             }
             .floatingHeader(kind.title) { EmptyView() }
+            .navigationDestination(for: Post.self) { PostDetailScreen(post: $0) }
+        }
+        // 화면을 찍을 때만 쓴다. 인자가 없으면 아무 일도 하지 않는다.
+        .task {
+            guard kind == .notice, Launch.open == "post",
+                  let first = items.first else { return }
+            path.append(first)
         }
     }
 

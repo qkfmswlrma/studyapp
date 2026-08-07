@@ -5,23 +5,22 @@ import SwiftUI
 // ─────────────────────────────────────────────────────────
 
 struct ExamChooserScreen: View {
+    @EnvironmentObject var store: Store
+    @State private var path = NavigationPath()
+
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ZStack {
                 AppBackground()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
                         VStack(spacing: 12) {
-                            NavigationLink {
-                                ExamListScreen(type: .level)
-                            } label: {
+                            NavigationLink(value: ExamType.level) {
                                 pick("레벨테스트", "실력을 확인해요", "chart.line.uptrend.xyaxis", Theme.purple)
                             }
                             .buttonStyle(PressableCardStyle())
 
-                            NavigationLink {
-                                ExamListScreen(type: .today)
-                            } label: {
+                            NavigationLink(value: ExamType.today) {
                                 pick("오늘의 문제", "하루 한 문제씩 풀어요", "sun.max.fill", Theme.pink)
                             }
                             .buttonStyle(PressableCardStyle())
@@ -32,6 +31,26 @@ struct ExamChooserScreen: View {
                 }
                 .floatingHeader("시험") { EmptyView() }
             }
+            .navigationDestination(for: ExamType.self) { ExamListScreen(type: $0) }
+            .navigationDestination(for: Exam.self) { ExamEntryScreen(exam: $0) }
+        }
+        // 화면을 찍을 때만 쓴다. 인자가 없으면 아무 일도 하지 않는다.
+        .task { openForScreenshot() }
+    }
+
+    /// 시험 목록과 응시 화면은 손으로 눌러 들어가야 나오는데 시뮬레이터에는 손가락이 없다.
+    /// 여기가 제일 확인이 급한 화면이다. 문항과 수식이 제대로 그려지는지는 눈으로만 안다.
+    private func openForScreenshot() {
+        switch Launch.open {
+        case "exam-list":
+            path.append(ExamType.level)
+        case "exam-today":
+            path.append(ExamType.today)
+        case "exam-take":
+            path.append(ExamType.level)
+            if let exam = store.exams(of: .level).first { path.append(exam) }
+        default:
+            break
         }
     }
 
@@ -82,9 +101,7 @@ struct ExamListScreen: View {
                         EmptyNote(text: "아직 시험이 없어요")
                     } else {
                         ForEach(items) { exam in
-                            NavigationLink {
-                                ExamEntryScreen(exam: exam)
-                            } label: {
+                            NavigationLink(value: exam) {
                                 ExamRow(exam: exam,
                                         stat: store.examStats[exam.id],
                                         solved: store.mySubmission(examId: exam.id) != nil)

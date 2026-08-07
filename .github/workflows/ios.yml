@@ -87,9 +87,14 @@ jobs:
           BUNDLE=app.mathroom.suhakjilmoon
 
           # 탭마다 한 장씩. 홈만 봐서는 어디가 잘못됐는지 알 수 없다.
-          shoot() {   # shoot <탭번호> <파일이름>
+          # 세 번째 인자를 주면 목록 안쪽 화면까지 열고 찍는다.
+          shoot() {   # shoot <탭번호> <파일이름> [깊은화면]
             xcrun simctl terminate "$DEVICE" "$BUNDLE" 2>/dev/null || true
-            xcrun simctl launch "$DEVICE" "$BUNDLE" --tab "$1"
+            if [ -n "$3" ]; then
+              xcrun simctl launch "$DEVICE" "$BUNDLE" --tab "$1" --open "$3"
+            else
+              xcrun simctl launch "$DEVICE" "$BUNDLE" --tab "$1"
+            fi
             sleep 9
             xcrun simctl io "$DEVICE" screenshot "shots/$2"
           }
@@ -101,10 +106,16 @@ jobs:
           shoot 3 04-exam.png
           shoot 4 05-records.png
 
+          # 목록 안쪽. 문항과 수식이 제대로 그려지는지는 여기서만 보인다.
+          shoot 1 06-notice-post.png post
+          shoot 3 07-exam-list.png  exam-list
+          shoot 3 08-exam-take.png  exam-take
+          shoot 3 09-exam-today.png exam-today
+
           # 어두운 화면도 본다
           xcrun simctl ui "$DEVICE" appearance dark
-          shoot 0 06-home-dark.png
-          shoot 1 07-notice-dark.png
+          shoot 0 10-home-dark.png
+          shoot 3 11-exam-take-dark.png exam-take
 
           xcrun simctl shutdown "$DEVICE" || true
           ls -la shots

@@ -1,0 +1,8 @@
+# 윈도우에서 작업하고 맥에서 빌드한다. 줄바꿈은 저장소에 LF 로만 담는다
+* text=auto eol=lf
+
+*.png binary
+*.woff2 binary
+*.woff binary
+*.ttf binary
+*.ipa binary

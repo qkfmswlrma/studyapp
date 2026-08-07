@@ -1,0 +1,8 @@
+node_modules/
+build/
+DerivedData/
+.DS_Store
+
+# Xcode 가 사람마다 다르게 만드는 것
+*.xcuserstate
+xcuserdata/

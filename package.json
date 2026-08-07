@@ -1,0 +1,31 @@
+{
+  "name": "suhakjilmoon-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "수학질문방 iOS 앱 (Capacitor 껍데기 + 웹앱 번들)",
+  "scripts": {
+    "prepare:www": "node scripts/prepare-www.js",
+    "icons": "node scripts/make-icons.js && cap-assets",
+    "sync": "npm run prepare:www && npx cap sync ios",
+    "open:ios": "npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
+    "@capacitor/keyboard": "^8.0.0",
+    "@capacitor/splash-screen": "^8.0.0",
+    "@capacitor/status-bar": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.5.0",
+    "@fontsource/plus-jakarta-sans": "^5.1.0",
+    "@supabase/supabase-js": "^2.48.0",
+    "katex": "0.16.9",
+    "mathlive": "0.110.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "sharp": "^0.33.5"
+  }
+}

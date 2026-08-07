@@ -1,0 +1,43 @@
+/* 아이폰 앱에서만 얹는 보정.
+   웹에서는 브라우저 주소창이 노치를 가려주지만 앱은 화면 끝까지 쓴다.
+   그래서 위아래로 안전 여백을 더한다. 사이트 원본 css 는 손대지 않는다. */
+
+/* 헤더가 노치 아래에서 시작하도록. 원래 위 여백 16px 에 노치 높이를 더한다 */
+.mr-header {
+  padding-top: calc(16px + env(safe-area-inset-top));
+}
+
+/* 카드가 펼쳐질 때 뒤를 덮는 막. 헤더 높이(74px)에 맞춰 내려와 있었다 */
+.mr-ov-scrim {
+  top: calc(74px + env(safe-area-inset-top));
+}
+
+/* 본문 맨 아래가 홈 표시줄에 가리지 않도록 */
+.mr-main {
+  padding-bottom: calc(20px + env(safe-area-inset-bottom));
+}
+
+/* 창은 위아래 모두 피해서 뜬다 */
+.mr-modal-overlay {
+  padding-top: calc(20px + env(safe-area-inset-top));
+  padding-bottom: calc(20px + env(safe-area-inset-bottom));
+}
+.mr-mk-modal {
+  padding-top: calc(20px + env(safe-area-inset-top));
+}
+
+/* 버튼을 길게 눌렀을 때 뜨는 복사 메뉴와 돋보기를 없앤다.
+   웹에서는 자연스럽지만 앱에서는 눌린 게 아니라 고장난 것처럼 보인다.
+   글은 그대로 선택할 수 있게 둔다 */
+button,
+.mr-brand,
+.mr-logo {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* 탭할 때 회색 사각형이 번쩍이는 것 */
+* {
+  -webkit-tap-highlight-color: transparent;
+}

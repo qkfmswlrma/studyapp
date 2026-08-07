@@ -232,7 +232,8 @@ struct MockRecordSheet: View {
             parts.round = suggestRound(store.examRecords, cat: name)
             newCategory = ""
         } catch {
-            error = store.message(for: error)
+            // catch 가 error 라는 이름을 가려서 self 를 붙여야 상태에 닿는다
+            self.error = store.message(for: error)
         }
     }
 

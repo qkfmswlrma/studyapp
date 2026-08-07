@@ -1,37 +1,50 @@
 import SwiftUI
 
-/// 색은 사이트에서 그대로 가져왔다 (_source.html 5859~5864줄).
-/// 유리 느낌은 웹처럼 흉내내지 않고 애플이 주는 Material 을 쓴다.
+/// 색과 짜임새는 디자인 시안(교육 플랫폼 iOS 앱 디자인)에서 가져왔다.
 ///
-/// 웹의 backdrop-filter 는 뒤를 흐리게 하는 게 전부다.
-/// Material 은 뒤에 깔린 색을 실시간으로 빨아들여서 글자 대비까지 알아서 맞춘다.
-/// 그래서 밝은 배경 위에서는 살짝 어둡게, 어두운 배경 위에서는 살짝 밝게 스스로 변한다.
+/// 다만 **유리는 시안대로 하지 않는다.** 시안은 카드도 탭 막대도 검색칸도
+/// 전부 `backdrop-filter: blur()` 를 걸었는데, 그건 뒤를 흐리게만 하는 서리유리다.
+/// 리퀴드 글래스는 뒤에 있는 것을 굴절시키고 가장자리에서 빛을 휜다.
+/// 굴절시킬 내용이 있어야 유리로 보이므로, 읽을 것은 또렷한 판에 두고
+/// 유리는 그 위에 떠 있는 것에만 쓴다. 아래 GlassCard 설명을 볼 것.
 enum Theme {
 
     // ── 글자 ────────────────────────────────────────────
     // 유리 위 글자는 고정색을 쓰면 배경에 따라 안 읽힌다.
     // 본문은 .primary / .secondary 를 쓰고, 여기 색은 강조에만 쓴다.
-    static let t1 = Color(light: 0x2C2347, dark: 0xEDE7FA)
-    static let t2 = Color(light: 0x6F6391, dark: 0xB3A9CC)
-    static let t3 = Color(light: 0x9A8FB8, dark: 0x8A81A6)
+    static let t1 = Color(light: 0x1C1230, dark: 0xEFE9FB)
+    static let t2 = Color(light: 0x6B5C8C, dark: 0xB4A8D0)
+    static let t3 = Color(light: 0x8B7BB0, dark: 0x8B80A8)
 
     // ── 강조색 ──────────────────────────────────────────
-    static let purple = Color(hex: 0x9B6CFF)
-    static let pink = Color(hex: 0xFF8FC8)
-    static let green = Color(hex: 0x16A394)
-    static let red = Color(light: 0xE5484D, dark: 0xFF6B70)
-    static let blue = Color(hex: 0x7C9BFF)
+    static let purple = Color(hex: 0x6D3BF5)
+    static let pink = Color(hex: 0xFF64C8)
+    static let green = Color(hex: 0x12A594)
+    static let red = Color(light: 0xFF3B6B, dark: 0xFF6B8F)
+    static let blue = Color(hex: 0x6C8BFF)
 
+    /// 시안의 히어로 카드에 쓰인 그라데이션.
+    /// 가장 중요한 것에만 쓴다. 이건 유리가 아니라 꽉 찬 색이다.
     static let brand = LinearGradient(
-        colors: [Color(hex: 0x9B6CFF), Color(hex: 0xFF8FC8)],
+        stops: [
+            .init(color: Color(hex: 0x8B5CF6), location: 0),
+            .init(color: Color(hex: 0x6D3BF5), location: 0.55),
+            .init(color: Color(hex: 0x4C1D95), location: 1),
+        ],
         startPoint: .topLeading, endPoint: .bottomTrailing)
 
-    static let radius: CGFloat = 22
+    static let radius: CGFloat = 24
 
     /// 내용 카드의 바닥. 유리가 아니라 판이다.
     /// 아주 살짝만 비쳐서 뒤 색이 배어 나오되 글은 또렷하게 읽힌다.
-    static let surface = Color(light: 0xFFFFFF, dark: 0x201B31).opacity(0.82)
-    static let hairline = Color(light: 0x6B4E9E, dark: 0xFFFFFF).opacity(0.10)
+    static let surface = Color(light: 0xFFFFFF, dark: 0x231A3A).opacity(0.86)
+    static let hairline = Color(light: 0x6D3BF5, dark: 0xFFFFFF).opacity(0.10)
+
+    /// 태그 알약. 시안의 rgba(109,59,245,0.12) 자리다.
+    static let tagBackground = Color(light: 0x6D3BF5, dark: 0xB79BFF).opacity(0.14)
+
+    /// 카드가 떠 보이게 하는 그림자색. 검정이 아니라 보라를 깐다.
+    static let castShadow = Color(hex: 0x461996)
 
     static func rateColor(_ rate: Double) -> Color {
         switch rate {
@@ -68,73 +81,56 @@ extension Color {
 /// 유리는 뒤에 볼 게 있어야 유리로 보인다.
 /// 단색 위에 올리면 그냥 반투명한 회색 판이다.
 /// 그래서 색 덩어리를 크게 풀어 깔고, 그 위에 유리를 얹는다.
+///
+/// 시안의 배경을 그대로 옮겼다. 연한 라벤더 바탕에 보라 덩어리가 왼쪽 위,
+/// 분홍이 오른쪽 위, 진보라가 아래 가운데다. 색을 세 군데로만 몰아서
+/// 무지개가 되지 않게 한다. 시안이 차분해 보이는 이유가 이것이다.
 struct AppBackground: View {
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        Group {
-            if #available(iOS 18.0, *) {
-                // 색이 사방에서 다르게 섞이는 바탕.
-                // 유리는 뒤에 있는 것을 휘어 보여주는 물건이라, 뒤가 밋밋하면
-                // 아무리 좋은 유리를 써도 그냥 허연 판으로 보인다.
-                // 흐릿한 덩어리 몇 개로는 부족하고 색이 확실히 갈려야 한다.
-                MeshGradient(width: 3, height: 4, points: [
-                    [0.0, 0.0], [0.5, 0.0], [1.0, 0.0],
-                    [0.0, 0.35], [0.6, 0.28], [1.0, 0.35],
-                    [0.0, 0.68], [0.4, 0.72], [1.0, 0.68],
-                    [0.0, 1.0], [0.5, 1.0], [1.0, 1.0],
-                ], colors: mesh)
-                .ignoresSafeArea()
-            } else {
-                fallback
-            }
-        }
-    }
-
-    private var mesh: [Color] {
-        scheme == .dark
-        ? [
-            Color(hex: 0x2A1B4D), Color(hex: 0x3B1F52), Color(hex: 0x1C1836),
-            Color(hex: 0x4A2478), Color(hex: 0x6B2E7A), Color(hex: 0x241C4A),
-            Color(hex: 0x2E1F5C), Color(hex: 0x7A2E5E), Color(hex: 0x1B2350),
-            Color(hex: 0x161226), Color(hex: 0x2A1B3D), Color(hex: 0x141B33),
-        ]
-        : [
-            Color(hex: 0xD9B8FF), Color(hex: 0xF3C4E6), Color(hex: 0xC9D4FF),
-            Color(hex: 0xB98CFF), Color(hex: 0xFFB3D9), Color(hex: 0xA9C0FF),
-            Color(hex: 0xE0C6FF), Color(hex: 0xFFC9E4), Color(hex: 0x9FB6FF),
-            Color(hex: 0xF0E4FF), Color(hex: 0xFFE0F0), Color(hex: 0xD6E0FF),
-        ]
-    }
-
-    private var fallback: some View {
         ZStack {
             LinearGradient(
                 stops: [
-                    .init(color: Color(light: 0xEADCFF, dark: 0x161226), location: 0),
-                    .init(color: Color(light: 0xFFDCEF, dark: 0x1E1730), location: 0.46),
-                    .init(color: Color(light: 0xD9E3FF, dark: 0x141726), location: 1),
+                    .init(color: base.0, location: 0),
+                    .init(color: base.1, location: 0.55),
+                    .init(color: base.2, location: 1),
                 ],
                 startPoint: .top, endPoint: .bottom)
 
             GeometryReader { geo in
                 let w = geo.size.width
                 let h = geo.size.height
-                blob(Theme.purple, size: w * 1.25).position(x: w * 0.05, y: h * 0.10)
-                blob(Theme.pink, size: w * 1.05).position(x: w * 1.00, y: h * 0.30)
-                blob(Theme.blue, size: w * 1.30).position(x: w * 0.35, y: h * 0.62)
+                // 시안의 radial-gradient 세 개와 같은 자리, 같은 순서
+                blob(blobColors.0, size: w * 1.15, alpha: scheme == .dark ? 0.40 : 0.48)
+                    .position(x: w * 0.15, y: h * 0.02)
+                blob(blobColors.1, size: w * 1.00, alpha: scheme == .dark ? 0.24 : 0.42)
+                    .position(x: w * 0.95, y: h * 0.19)
+                blob(blobColors.2, size: w * 1.25, alpha: scheme == .dark ? 0.42 : 0.36)
+                    .position(x: w * 0.50, y: h * 1.02)
             }
-            .ignoresSafeArea()
         }
         .ignoresSafeArea()
     }
 
-    private func blob(_ color: Color, size: CGFloat) -> some View {
+    private var base: (Color, Color, Color) {
+        scheme == .dark
+        ? (Color(hex: 0x150E26), Color(hex: 0x1B1233), Color(hex: 0x221741))
+        : (Color(hex: 0xF6F2FF), Color(hex: 0xECE4FF), Color(hex: 0xE2D6FF))
+    }
+
+    private var blobColors: (Color, Color, Color) {
+        scheme == .dark
+        ? (Color(hex: 0x7C4DFF), Color(hex: 0xFF6FD0), Color(hex: 0x5B21B6))
+        : (Color(hex: 0x9D6AFF), Color(hex: 0xFFA4E8), Color(hex: 0x6D3BF5))
+    }
+
+    private func blob(_ color: Color, size: CGFloat, alpha: Double) -> some View {
         Circle()
             .fill(color)
             .frame(width: size, height: size)
-            .opacity(scheme == .dark ? 0.26 : 0.55)
-            .blur(radius: size * 0.22)
+            .opacity(alpha)
+            .blur(radius: size * 0.28)
     }
 }
 
@@ -278,7 +274,47 @@ struct GlassCard<Content: View>: View {
             .overlay(
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
                     .strokeBorder(Theme.hairline, lineWidth: 0.5))
-            .shadow(color: Color(hex: 0x3B1E63).opacity(0.07), radius: 14, y: 6)
+            // 시안의 0 14px 30px rgba(70,25,150,0.12)
+            .shadow(color: Theme.castShadow.opacity(0.12), radius: 15, y: 7)
+    }
+}
+
+// ─────────────────────────────────────────────────────────
+// 시안에서 되풀이되는 조각들
+// ─────────────────────────────────────────────────────────
+
+/// 화면 제목. 시안은 제목줄을 따로 띄우지 않고 내용 맨 위에 크게 적는다.
+///
+/// 떠 있는 제목줄을 없앤 이유가 있다. 유리는 화면에 한두 개만 있어야 한다.
+/// 탭 막대가 이미 유리라서, 제목줄까지 유리로 띄우면 유리가 유리를 굴절시킨다.
+struct ScreenTitle: View {
+    let text: String
+    var body: some View {
+        Text(text)
+            .font(.system(size: 30, weight: .heavy))
+            .tracking(-0.8)
+            .foregroundStyle(Theme.t1)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// 분류를 나타내는 작은 알약. 시안에서 글 카드마다 붙는다.
+struct TagPill: View {
+    let text: String
+    var body: some View {
+        Text(text)
+            .font(.system(size: 11, weight: .heavy))
+            .foregroundStyle(Theme.purple)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 3.5)
+            .background(Theme.tagBackground, in: Capsule())
+    }
+}
+
+/// 아직 안 읽은 것에 붙는 점
+struct UnreadDot: View {
+    var body: some View {
+        Circle().fill(Theme.red).frame(width: 7, height: 7)
     }
 }
 
@@ -290,27 +326,26 @@ struct GlassCard<Content: View>: View {
 struct BrandButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 16, weight: .bold))
+            .font(.system(size: 16, weight: .heavy))
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 15)
+            .padding(.vertical, 16)
             .background {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                Capsule()
                     .fill(Theme.brand)
                     .overlay {
                         // 위쪽 절반에 걸리는 빛. 단추가 볼록해 보인다
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        Capsule()
                             .fill(
                                 LinearGradient(
-                                    colors: [.white.opacity(0.35), .white.opacity(0)],
+                                    colors: [.white.opacity(0.28), .white.opacity(0)],
                                     startPoint: .top, endPoint: .center))
                     }
                     .overlay {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .strokeBorder(.white.opacity(0.4), lineWidth: 0.8)
+                        Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 0.8)
                     }
             }
-            .shadow(color: Theme.purple.opacity(0.38), radius: 14, y: 6)
+            .shadow(color: Theme.purple.opacity(0.36), radius: 18, y: 8)
             .opacity(configuration.isPressed ? 0.9 : 1)
             .scaleEffect(configuration.isPressed ? 0.975 : 1)
             .animation(.spring(response: 0.25, dampingFraction: 0.7),

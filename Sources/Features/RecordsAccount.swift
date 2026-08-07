@@ -18,6 +18,10 @@ struct RecordsScreen: View {
                 } else {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 12) {
+                            ScreenTitle(text: "내 기록")
+                                .padding(.horizontal, 20)
+                                .padding(.top, 8)
+
                             Picker("", selection: $wrongOnly) {
                                 Text("푼 시험").tag(false)
                                 Text("오답노트").tag(true)
@@ -72,7 +76,6 @@ struct RecordsScreen: View {
                     .refreshable { await store.reload() }
                 }
             }
-            .floatingHeader("내 기록") { EmptyView() }
         }
     }
 

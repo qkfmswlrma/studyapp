@@ -47,7 +47,7 @@ struct RootView: View {
                 SplashView()
             } else {
                 TabView(selection: $tab) {
-                    HomeScreen(authOpen: $authOpen)
+                    HomeScreen(authOpen: $authOpen, tab: $tab)
                         .tabItem { Label("홈", systemImage: "house.fill") }
                         .tag(0)
 
@@ -106,69 +106,15 @@ struct SplashView: View {
 }
 
 // ─────────────────────────────────────────────────────────
-// 화면 위쪽 제목줄
+// 화면 위쪽 제목
 // ─────────────────────────────────────────────────────────
 
-extension View {
-    /// 제목줄을 내용 위에 띄운다.
-    ///
-    /// 내용 안에 같이 넣으면 같이 스크롤돼서 유리를 쓸 이유가 없어진다.
-    /// 떠 있어야 카드가 그 뒤로 지나가고, 그때 유리가 내용을 굴절시킨다.
-    /// 이게 리퀴드 글래스를 쓰는 이유다.
-    func floatingHeader<T: View>(_ title: String,
-                                 @ViewBuilder trailing: () -> T) -> some View {
-        safeAreaInset(edge: .top, spacing: 0) {
-            ScreenHeader(title: title, trailing: trailing())
-                .padding(.horizontal, 14)
-                .padding(.bottom, 6)
-        }
-    }
-}
-
-struct ScreenHeader<Trailing: View>: View {
-    let title: String
-    var trailing: Trailing
-
-    init(title: String, trailing: Trailing) {
-        self.title = title
-        self.trailing = trailing
-    }
-
-    init(title: String, @ViewBuilder trailing: () -> Trailing) {
-        self.title = title
-        self.trailing = trailing()
-    }
-
-    var body: some View {
-        HStack(spacing: 11) {
-            Text("∫")
-                .font(.system(size: 21, weight: .heavy))
-                .foregroundStyle(.white)
-                .frame(width: 40, height: 40)
-                .background {
-                    RoundedRectangle(cornerRadius: 13, style: .continuous)
-                        .fill(Theme.brand)
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 13, style: .continuous)
-                                .fill(LinearGradient(colors: [.white.opacity(0.35), .clear],
-                                                     startPoint: .top, endPoint: .center))
-                        }
-                }
-                .shadow(color: Theme.purple.opacity(0.35), radius: 10, y: 4)
-
-            Text(title)
-                .font(.system(size: 19, weight: .heavy))
-                .foregroundStyle(.primary)
-
-            Spacer()
-            trailing
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        // 여기가 유리다. 카드가 이 뒤로 지나간다.
-        .glass(radius: 30)
-    }
-}
+// 화면 제목은 `ScreenTitle` 을 내용 맨 위에 그냥 넣는다 (Theme.swift).
+//
+// 예전에는 유리 제목줄을 띄워뒀는데 시안을 따라 걷어냈다.
+// **유리는 화면에 한두 개만 있어야 한다.** 탭 막대가 이미 유리라
+// 제목줄까지 띄우면 유리가 유리를 굴절시켜 둘 다 허옇게 뜬다.
+// 굴절시킬 내용이 있어야 유리가 유리로 보인다.
 
 /// 로그인 단추 또는 회원 아이콘
 struct AccountButton: View {
@@ -177,12 +123,20 @@ struct AccountButton: View {
 
     var body: some View {
         if store.loggedIn {
+            // 시안의 "고등 회원" 배지 자리.
+            // 떠 있는 조작 요소라 여기는 유리가 맞다.
             NavigationLink { AccountScreen() } label: {
-                Image(systemName: "person.fill")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(.primary)
-                    .frame(width: 40, height: 40)
-                    .glass(radius: 20, material: .thinMaterial)
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(Theme.purple)
+                        .frame(width: 8, height: 8)
+                    Text(store.isAdmin ? "관리자" : "회원")
+                        .font(.system(size: 13, weight: .heavy))
+                        .foregroundStyle(Theme.t1)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
+                .glass(radius: 999, material: .thinMaterial, interactive: true)
             }
         } else {
             Button("로그인") { authOpen = true }

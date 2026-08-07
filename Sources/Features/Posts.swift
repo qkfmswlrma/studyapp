@@ -7,51 +7,75 @@ import SwiftUI
 struct HomeScreen: View {
     @EnvironmentObject var store: Store
     @Binding var authOpen: Bool
+    @Binding var tab: Int
+
+    /// 히어로 자리에 올릴 오늘의 문제. 서버가 공개된 것만 내려준다.
+    private var todayExam: Exam? { store.exams(of: .today).first }
+
+    /// 가로로 훑는 새 글. 칼럼은 회원만 받아오므로 비회원에게는 공지만 남는다.
+    private var feed: [Post] {
+        (store.columns(nil) + store.notices)
+            .sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
+            .prefix(6)
+            .map { $0 }
+    }
 
     var body: some View {
         NavigationStack {
             ZStack {
                 AppBackground()
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
-                        GlassCard {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(store.loggedIn
-                                     ? "\(store.profile?.username ?? "")님, 안녕하세요"
-                                     : "안녕하세요")
-                                    .font(.system(size: 18, weight: .heavy))
-                                    .foregroundStyle(Theme.t1)
-                                Text(store.loggedIn
-                                     ? "오늘도 한 문제 풀어볼까요"
-                                     : "로그인하면 칼럼과 내 기록을 볼 수 있어요")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(Theme.t2)
+                    VStack(alignment: .leading, spacing: 0) {
+                        greeting
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 18)
+
+                        if let todayExam {
+                            NavigationLink(value: todayExam) {
+                                TodayHeroCard(exam: todayExam,
+                                              stat: store.examStats[todayExam.id],
+                                              solved: store.mySubmission(examId: todayExam.id) != nil)
                             }
+                            .buttonStyle(PressableCardStyle())
+                            .padding(.horizontal, 20)
                         }
-                        .padding(.horizontal, 20)
 
-                        VStack(spacing: 10) {
-                            shortcut("공지사항", "\(store.notices.count)개의 글",
-                                     "megaphone.fill", Theme.pink)
-                            shortcut("칼럼", store.loggedIn
-                                     ? "\(store.columns(nil).count)개의 글" : "회원만 볼 수 있어요",
-                                     "book.fill", Theme.purple)
-                            shortcut("시험", "\(store.exams.count)개의 시험",
-                                     "list.clipboard.fill", Theme.blue)
-                        }
-                        .padding(.horizontal, 20)
-
-                        if !store.notices.isEmpty {
-                            sectionTitle("최근 공지")
-                            ForEach(store.notices.prefix(3)) { post in
-                                NavigationLink {
-                                    PostDetailScreen(post: post)
-                                } label: {
-                                    PostRow(post: post)
-                                }
-                                .buttonStyle(PressableCardStyle())
+                        if !feed.isEmpty {
+                            sectionHeader("새 글", more: "모두 보기") { tab = 2 }
                                 .padding(.horizontal, 20)
+                                .padding(.top, 26)
+                                .padding(.bottom, 12)
+
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 11) {
+                                    ForEach(feed) { post in
+                                        NavigationLink(value: post) {
+                                            FeedCard(post: post, unread: store.isUnread(post))
+                                        }
+                                        .buttonStyle(PressableCardStyle())
+                                    }
+                                }
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 2)
                             }
+                        }
+
+                        HStack(spacing: 11) {
+                            miniCard("시험", "\(store.exams.count)개", dot: false) { tab = 3 }
+                            miniCard("공지사항",
+                                     store.notices.contains(where: \.isRule) ? "규칙 고정됨"
+                                                                             : "\(store.notices.count)개",
+                                     dot: store.notices.contains { store.isUnread($0) }) { tab = 1 }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 26)
+
+                        if !store.loggedIn {
+                            Text("로그인하면 칼럼과 내 기록을 볼 수 있어요")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(Theme.t3)
+                                .frame(maxWidth: .infinity)
+                                .padding(.top, 18)
                         }
 
                         if let err = store.errorText {
@@ -59,44 +83,172 @@ struct HomeScreen: View {
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundStyle(Theme.t3)
                                 .padding(.horizontal, 20)
+                                .padding(.top, 14)
                         }
                     }
+                    .padding(.top, 8)
                     .padding(.bottom, 24)
                 }
                 .refreshable { await store.reload() }
-                .floatingHeader("수학질문방") { AccountButton(authOpen: $authOpen) }
             }
+            .navigationDestination(for: Post.self) { PostDetailScreen(post: $0) }
+            .navigationDestination(for: Exam.self) { ExamEntryScreen(exam: $0) }
         }
     }
 
-    private func sectionTitle(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: 14, weight: .heavy))
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 22)
-            .padding(.top, 6)
+    /// 시안의 "안녕하세요 / 민준님" 자리
+    private var greeting: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(store.loggedIn ? "안녕하세요" : "수학질문방")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.t2)
+                Text(store.loggedIn ? "\(store.profile?.username ?? "")님" : "안녕하세요")
+                    .font(.system(size: 30, weight: .heavy))
+                    .tracking(-0.9)
+                    .foregroundStyle(Theme.t1)
+            }
+            Spacer(minLength: 12)
+            AccountButton(authOpen: $authOpen)
+        }
     }
 
-    private func shortcut(_ title: String, _ sub: String,
-                          _ icon: String, _ color: Color) -> some View {
-        GlassCard(padding: 16) {
-            HStack(spacing: 14) {
-                Image(systemName: icon)
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 42, height: 42)
-                    .background(color, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+    private func sectionHeader(_ title: String, more: String,
+                               tap: @escaping () -> Void) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .font(.system(size: 19, weight: .heavy))
+                .tracking(-0.5)
+                .foregroundStyle(Theme.t1)
+            Spacer()
+            Button(more, action: tap)
+                .font(.system(size: 12.5, weight: .heavy))
+                .foregroundStyle(Theme.purple)
+        }
+    }
+
+    private func miniCard(_ title: String, _ sub: String,
+                          dot: Bool, tap: @escaping () -> Void) -> some View {
+        Button(action: tap) {
+            GlassCard(padding: 16) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title)
-                        .font(.system(size: 15.5, weight: .heavy))
-                        .foregroundStyle(Theme.t1)
+                    HStack(spacing: 6) {
+                        Text(title)
+                            .font(.system(size: 15.5, weight: .heavy))
+                            .tracking(-0.3)
+                            .foregroundStyle(Theme.t1)
+                        if dot { UnreadDot() }
+                        Spacer(minLength: 0)
+                    }
                     Text(sub)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 12.5, weight: .semibold))
                         .foregroundStyle(Theme.t3)
                 }
-                Spacer()
             }
         }
+        .buttonStyle(PressableCardStyle())
+    }
+}
+
+/// 오늘의 문제 히어로.
+///
+/// **여기만 유리가 아니다.** 화면에서 가장 먼저 눌러야 할 것은 꽉 찬 색으로 둔다.
+/// 유리로 만들면 배경에 녹아들어 눈에 안 띈다. 시안도 이 카드만 색을 채웠다.
+struct TodayHeroCard: View {
+    let exam: Exam
+    let stat: ExamStat?
+    let solved: Bool
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            // 오른쪽 위에서 빛이 도는 느낌
+            Circle()
+                .fill(.white.opacity(0.14))
+                .frame(width: 150, height: 150)
+                .offset(x: 30, y: -40)
+
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 8) {
+                    Circle().fill(.white).frame(width: 7, height: 7)
+                    Text(dateLabel)
+                        .font(.system(size: 11.5, weight: .heavy))
+                        .tracking(0.4)
+                        .foregroundStyle(.white.opacity(0.9))
+                }
+
+                Text(solved ? "\(exam.title) · 푼 문제" : "\(exam.title) · 아직 안 풀었어요")
+                    .font(.system(size: 23, weight: .heavy))
+                    .tracking(-0.7)
+                    .lineSpacing(2)
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.leading)
+                    .padding(.top, 10)
+
+                HStack {
+                    if let rate = stat?.rate {
+                        Text("평균 정답률 \(Int(rate * 100))%")
+                            .font(.system(size: 12.5, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.82))
+                    }
+                    Spacer(minLength: 8)
+                    Text(solved ? "다시 보기" : "풀기")
+                        .font(.system(size: 13.5, weight: .heavy))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 9)
+                        .background(.white.opacity(0.2), in: Capsule())
+                        .overlay(Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 1))
+                }
+                .padding(.top, 16)
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.brand)
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .shadow(color: Theme.castShadow.opacity(0.32), radius: 24, y: 12)
+    }
+
+    private var dateLabel: String {
+        guard let date = exam.publishAt ?? exam.createdAt else { return "오늘의 문제" }
+        return "오늘의 문제 · " + date.formatted(.dateTime.month().day())
+    }
+}
+
+/// 가로로 훑는 새 글 카드
+struct FeedCard: View {
+    let post: Post
+    let unread: Bool
+
+    var body: some View {
+        GlassCard(padding: 15, radius: 24) {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 7) {
+                    TagPill(text: post.isRule ? "규칙" : post.category.label)
+                    if unread { UnreadDot() }
+                    Spacer(minLength: 0)
+                }
+                Text(post.title)
+                    .font(.system(size: 15, weight: .bold))
+                    .tracking(-0.25)
+                    .lineSpacing(2)
+                    .foregroundStyle(Theme.t1)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(3)
+                    .padding(.top, 9)
+                Spacer(minLength: 8)
+                Text(meta)
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(Theme.t3)
+            }
+            .frame(width: 166, height: 116, alignment: .topLeading)
+        }
+    }
+
+    private var meta: String {
+        let who = post.author.isEmpty ? "관리자" : post.author
+        guard let date = post.createdAt else { return who }
+        return who + " · " + date.formatted(.dateTime.month().day())
     }
 }
 
@@ -132,6 +284,11 @@ struct PostListScreen: View {
                 } else {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 12) {
+                            ScreenTitle(text: kind.title)
+                                .padding(.horizontal, 20)
+                                .padding(.top, 8)
+                                .padding(.bottom, 2)
+
                             if kind == .column {
                                 categoryPicker
                                     .padding(.horizontal, 20)
@@ -155,7 +312,6 @@ struct PostListScreen: View {
                     .refreshable { await store.reload() }
                 }
             }
-            .floatingHeader(kind.title) { EmptyView() }
             .navigationDestination(for: Post.self) { PostDetailScreen(post: $0) }
         }
         // 화면을 찍을 때만 쓴다. 인자가 없으면 아무 일도 하지 않는다.
@@ -170,25 +326,37 @@ struct PostListScreen: View {
         kind == .notice ? store.notices : store.columns(category)
     }
 
+    /// 시안의 분류 고르개. 알약 네 개를 한 칸 안에 넣는다.
     private var categoryPicker: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             chip("전체", nil)
             chip("초등", .elem)
             chip("중학", .mid)
             chip("고등", .high)
         }
+        .padding(4)
+        .background(
+            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                .fill(Theme.surface.opacity(0.5)))
+        .overlay(
+            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                .strokeBorder(Theme.hairline, lineWidth: 0.5))
     }
 
     private func chip(_ label: String, _ value: PostCategory?) -> some View {
         let on = category == value
-        return Button(label) { category = value }
-            .font(.system(size: 13.5, weight: .bold))
+        // .snappy 는 iOS 17 부터라 쓰지 않는다. 내려받는 기준은 16 이다.
+        return Button(label) { withAnimation(.easeOut(duration: 0.2)) { category = value } }
+            .font(.system(size: 13.5, weight: .heavy))
             .foregroundStyle(on ? .white : Theme.t2)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 9)
+            .padding(.vertical, 8)
             .background {
-                if on { Capsule().fill(Theme.brand) }
-                else { Capsule().fill(.ultraThinMaterial) }
+                if on {
+                    RoundedRectangle(cornerRadius: 11, style: .continuous)
+                        .fill(Theme.brand)
+                        .shadow(color: Theme.purple.opacity(0.3), radius: 9, y: 4)
+                }
             }
     }
 }
@@ -198,26 +366,21 @@ struct PostRow: View {
     let post: Post
 
     var body: some View {
-        GlassCard(padding: 16) {
-            VStack(alignment: .leading, spacing: 6) {
+        GlassCard(padding: 16, radius: 22) {
+            VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 7) {
-                    if post.isRule {
-                        Text("규칙")
-                            .font(.system(size: 11, weight: .heavy))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 9).padding(.vertical, 3)
-                            .background(Theme.brand, in: RoundedRectangle(cornerRadius: 7))
-                    }
-                    Text(post.title)
-                        .font(.system(size: 15.5, weight: .heavy))
-                        .foregroundStyle(Theme.t1)
-                        .multilineTextAlignment(.leading)
+                    TagPill(text: post.isRule ? "규칙" : post.category.label)
                     // 아직 안 읽은 글에 붙는 점
-                    if store.isUnread(post) {
-                        Circle().fill(Theme.red).frame(width: 7, height: 7)
-                    }
+                    if store.isUnread(post) { UnreadDot() }
                     Spacer(minLength: 0)
                 }
+                Text(post.title)
+                    .font(.system(size: 16, weight: .bold))
+                    .tracking(-0.25)
+                    .lineSpacing(2)
+                    .foregroundStyle(Theme.t1)
+                    .multilineTextAlignment(.leading)
+
                 HStack(spacing: 6) {
                     Text(post.author.isEmpty ? "관리자" : post.author)
                     if let date = post.createdAt {
@@ -226,7 +389,7 @@ struct PostRow: View {
                     }
                 }
                 .font(.system(size: 12.5, weight: .semibold))
-                .foregroundStyle(Theme.t3)
+                .foregroundStyle(Theme.t2)
             }
         }
     }

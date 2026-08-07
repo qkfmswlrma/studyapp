@@ -14,14 +14,20 @@ struct ExamChooserScreen: View {
                 AppBackground()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
-                        VStack(spacing: 12) {
+                        ScreenTitle(text: "시험")
+                            .padding(.horizontal, 20)
+                            .padding(.top, 8)
+
+                        // 시안처럼 둘을 나란히 둔다.
+                        // 먼저 보게 할 레벨테스트만 색을 채우고 나머지는 판으로 둔다.
+                        HStack(spacing: 12) {
                             NavigationLink(value: ExamType.level) {
-                                pick("레벨테스트", "실력을 확인해요", "chart.line.uptrend.xyaxis", Theme.purple)
+                                pick("레벨테스트", "실력을 확인해요\n비회원도 응시 가능", filled: true)
                             }
                             .buttonStyle(PressableCardStyle())
 
                             NavigationLink(value: ExamType.today) {
-                                pick("오늘의 문제", "하루 한 문제씩 풀어요", "sun.max.fill", Theme.pink)
+                                pick("오늘의 문제", todaySub, filled: false)
                             }
                             .buttonStyle(PressableCardStyle())
                         }
@@ -29,7 +35,6 @@ struct ExamChooserScreen: View {
                     }
                     .padding(.bottom, 24)
                 }
-                .floatingHeader("시험") { EmptyView() }
             }
             .navigationDestination(for: ExamType.self) { ExamListScreen(type: $0) }
             .navigationDestination(for: Exam.self) { ExamEntryScreen(exam: $0) }
@@ -54,32 +59,39 @@ struct ExamChooserScreen: View {
         }
     }
 
-    private func pick(_ title: String, _ sub: String,
-                      _ icon: String, _ color: Color) -> some View {
-        GlassCard(padding: 22) {
-            VStack(spacing: 10) {
-                Image(systemName: icon)
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 58, height: 58)
-                    .background {
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(color)
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .fill(LinearGradient(colors: [.white.opacity(0.35), .clear],
-                                                         startPoint: .top, endPoint: .center))
-                            }
-                    }
-                    .shadow(color: color.opacity(0.35), radius: 12, y: 5)
-                Text(title)
-                    .font(.system(size: 16.5, weight: .heavy))
-                    .foregroundStyle(.primary)
-                Text(sub)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity)
+    /// 오늘의 문제 카드에 적을 두 줄
+    private var todaySub: String {
+        guard let exam = store.exams(of: .today).first else { return "아직 문제가 없어요" }
+        let day = (exam.publishAt ?? exam.createdAt)?
+            .formatted(.dateTime.month().day()) ?? "오늘"
+        let solved = store.mySubmission(examId: exam.id) != nil
+        return day + "\n" + (solved ? "푼 문제예요" : "아직 안 풀었어요")
+    }
+
+    @ViewBuilder
+    private func pick(_ title: String, _ sub: String, filled: Bool) -> some View {
+        let content = VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(.system(size: 17, weight: .heavy))
+                .tracking(-0.4)
+                .foregroundStyle(filled ? .white : Theme.t1)
+            Text(sub)
+                .font(.system(size: 12.5, weight: .semibold))
+                .lineSpacing(2)
+                .foregroundStyle(filled ? .white.opacity(0.85) : Theme.t2)
+                .multilineTextAlignment(.leading)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, minHeight: 74, alignment: .topLeading)
+
+        if filled {
+            content
+                .padding(16)
+                .background(Theme.brand)
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .shadow(color: Theme.castShadow.opacity(0.28), radius: 18, y: 9)
+        } else {
+            GlassCard(padding: 16) { content }
         }
     }
 }

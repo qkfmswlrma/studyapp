@@ -160,51 +160,51 @@ struct TodayHeroCard: View {
     let solved: Bool
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            // 오른쪽 위에서 빛이 도는 느낌
-            Circle()
-                .fill(.white.opacity(0.14))
-                .frame(width: 150, height: 150)
-                .offset(x: 30, y: -40)
-
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 8) {
-                    Circle().fill(.white).frame(width: 7, height: 7)
-                    Text(dateLabel)
-                        .font(.system(size: 11.5, weight: .heavy))
-                        .tracking(0.4)
-                        .foregroundStyle(.white.opacity(0.9))
-                }
-
-                Text(solved ? "\(exam.title) · 푼 문제" : "\(exam.title) · 아직 안 풀었어요")
-                    .font(.system(size: 23, weight: .heavy))
-                    .tracking(-0.7)
-                    .lineSpacing(2)
-                    .foregroundStyle(.white)
-                    .multilineTextAlignment(.leading)
-                    .padding(.top, 10)
-
-                HStack {
-                    if let rate = stat?.rate {
-                        Text("평균 정답률 \(Int(rate * 100))%")
-                            .font(.system(size: 12.5, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.82))
-                    }
-                    Spacer(minLength: 8)
-                    Text(solved ? "다시 보기" : "풀기")
-                        .font(.system(size: 13.5, weight: .heavy))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 9)
-                        .background(.white.opacity(0.2), in: Capsule())
-                        .overlay(Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 1))
-                }
-                .padding(.top, 16)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Circle().fill(.white).frame(width: 7, height: 7)
+                Text(dateLabel)
+                    .font(.system(size: 11.5, weight: .heavy))
+                    .tracking(0.4)
+                    .foregroundStyle(.white.opacity(0.9))
             }
+
+            // 위 줄에서 이미 "오늘의 문제"라고 했으므로 제목을 또 적지 않는다
+            Text(solved ? "다시 볼 수 있어요" : "아직 안 풀었어요")
+                .font(.system(size: 23, weight: .heavy))
+                .tracking(-0.7)
+                .foregroundStyle(.white)
+                .padding(.top, 10)
+
+            HStack {
+                if let rate = stat?.rate {
+                    Text("평균 정답률 \(Int(rate * 100))%")
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.82))
+                }
+                Spacer(minLength: 8)
+                Text(solved ? "다시 보기" : "풀기")
+                    .font(.system(size: 13.5, weight: .heavy))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 9)
+                    .background(.white.opacity(0.2), in: Capsule())
+                    .overlay(Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 1))
+            }
+            .padding(.top, 16)
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.brand)
+        .background {
+            // 색을 먼저 깔고 그 위에 빛 도는 원을 얹는다.
+            // 원을 내용과 나란히 두면 원 크기만큼 카드가 키를 잡아 쓸데없이 높아진다.
+            Theme.brand.overlay(alignment: .topTrailing) {
+                Circle()
+                    .fill(.white.opacity(0.14))
+                    .frame(width: 150, height: 150)
+                    .offset(x: 34, y: -46)
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .shadow(color: Theme.castShadow.opacity(0.32), radius: 24, y: 12)
     }
@@ -234,14 +234,14 @@ struct FeedCard: View {
                     .lineSpacing(2)
                     .foregroundStyle(Theme.t1)
                     .multilineTextAlignment(.leading)
-                    .lineLimit(3)
+                    .lineLimit(2)
                     .padding(.top, 9)
-                Spacer(minLength: 8)
+                Spacer(minLength: 6)
                 Text(meta)
                     .font(.system(size: 11.5, weight: .semibold))
                     .foregroundStyle(Theme.t3)
             }
-            .frame(width: 166, height: 116, alignment: .topLeading)
+            .frame(width: 166, height: 92, alignment: .topLeading)
         }
     }
 

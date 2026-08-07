@@ -37,7 +37,9 @@ enum Theme {
 
     /// 내용 카드의 바닥. 유리가 아니라 판이다.
     /// 아주 살짝만 비쳐서 뒤 색이 배어 나오되 글은 또렷하게 읽힌다.
-    static let surface = Color(light: 0xFFFFFF, dark: 0x231A3A).opacity(0.86)
+    /// 하얗게 꽉 채우면 배경의 보라가 하나도 안 배어 나와 카드가 종잇장처럼 뜬다.
+    /// 조금 비쳐야 시안처럼 배경 위에 얹힌 판으로 보인다.
+    static let surface = Color(light: 0xFFFFFF, dark: 0x241B3C).opacity(0.72)
     static let hairline = Color(light: 0x6D3BF5, dark: 0xFFFFFF).opacity(0.10)
 
     /// 태그 알약. 시안의 rgba(109,59,245,0.12) 자리다.
@@ -102,11 +104,11 @@ struct AppBackground: View {
                 let w = geo.size.width
                 let h = geo.size.height
                 // 시안의 radial-gradient 세 개와 같은 자리, 같은 순서
-                blob(blobColors.0, size: w * 1.15, alpha: scheme == .dark ? 0.40 : 0.48)
+                blob(blobColors.0, size: w * 1.15, alpha: scheme == .dark ? 0.50 : 0.60)
                     .position(x: w * 0.15, y: h * 0.02)
-                blob(blobColors.1, size: w * 1.00, alpha: scheme == .dark ? 0.24 : 0.42)
+                blob(blobColors.1, size: w * 1.00, alpha: scheme == .dark ? 0.30 : 0.52)
                     .position(x: w * 0.95, y: h * 0.19)
-                blob(blobColors.2, size: w * 1.25, alpha: scheme == .dark ? 0.42 : 0.36)
+                blob(blobColors.2, size: w * 1.30, alpha: scheme == .dark ? 0.52 : 0.46)
                     .position(x: w * 0.50, y: h * 1.02)
             }
         }
@@ -125,12 +127,21 @@ struct AppBackground: View {
         : (Color(hex: 0x9D6AFF), Color(hex: 0xFFA4E8), Color(hex: 0x6D3BF5))
     }
 
+    /// 시안의 `radial-gradient(… , rgba(색,0.45), rgba(색,0) 70%)` 그대로.
+    ///
+    /// 원을 칠하고 흐리게 하는 방법도 있지만 그러면 색이 뭉개져 밋밋한 한 덩어리가 된다.
+    /// 가운데가 진하고 가장자리로 갈수록 사라지는 그라데이션이라야 색 자리가 산다.
+    /// 유리가 굴절시킬 것이 바로 이 색 차이다.
     private func blob(_ color: Color, size: CGFloat, alpha: Double) -> some View {
         Circle()
-            .fill(color)
+            .fill(RadialGradient(
+                stops: [
+                    .init(color: color.opacity(alpha), location: 0),
+                    .init(color: color.opacity(alpha * 0.45), location: 0.45),
+                    .init(color: color.opacity(0), location: 1),
+                ],
+                center: .center, startRadius: 0, endRadius: size / 2))
             .frame(width: size, height: size)
-            .opacity(alpha)
-            .blur(radius: size * 0.28)
     }
 }
 

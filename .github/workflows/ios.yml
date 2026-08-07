@@ -99,23 +99,27 @@ jobs:
             xcrun simctl io "$DEVICE" screenshot "shots/$2"
           }
 
+          # 탭은 0 홈, 1 칼럼, 2 시험, 3 모의고사, 4 기록
           xcrun simctl ui "$DEVICE" appearance light
           shoot 0 01-home.png
-          shoot 1 02-notice.png
-          shoot 2 03-column.png
-          shoot 3 04-exam.png
+          shoot 1 02-column.png
+          shoot 2 03-exam.png
+          shoot 3 04-mock.png
           shoot 4 05-records.png
 
           # 목록 안쪽. 문항과 수식이 제대로 그려지는지는 여기서만 보인다.
-          shoot 1 06-notice-post.png post
-          shoot 3 07-exam-list.png  exam-list
-          shoot 3 08-exam-take.png  exam-take
-          shoot 3 09-exam-today.png exam-today
+          shoot 0 06-notice.png      notice
+          shoot 0 07-notice-post.png post
+          shoot 0 08-game.png        game
+          shoot 2 09-exam-list.png   exam-list
+          shoot 2 10-exam-take.png   exam-take
+          shoot 2 11-exam-today.png  exam-today
 
           # 어두운 화면도 본다
           xcrun simctl ui "$DEVICE" appearance dark
-          shoot 0 10-home-dark.png
-          shoot 3 11-exam-take-dark.png exam-take
+          shoot 0 12-home-dark.png
+          shoot 0 13-game-dark.png     game
+          shoot 2 14-exam-take-dark.png exam-take
 
           xcrun simctl shutdown "$DEVICE" || true
           ls -la shots

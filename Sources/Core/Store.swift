@@ -14,6 +14,10 @@ final class Store: ObservableObject {
     @Published var readPosts: Set<UUID> = []
     @Published var readExams: Set<UUID> = []
 
+    /// 모의고사. 서버 정책이 본인 것만 내려준다.
+    @Published var examRecords: [ExamRecord] = []
+    @Published var examCategories: [ExamCategory] = []
+
     @Published var loading = true
     @Published var errorText: String?
 
@@ -65,6 +69,37 @@ final class Store: ObservableObject {
         } catch {
             profile = nil
         }
+        // 탐구 과목 이름은 화면 곳곳에서 쓴다. 프로필이 바뀔 때마다 갱신한다.
+        TamguNames.apply(profile)
+    }
+
+    // ── 모의고사 ────────────────────────────────────────
+
+    func loadMock() async {
+        guard loggedIn else {
+            examRecords = []
+            examCategories = []
+            return
+        }
+        examRecords = (try? await Supa.examRecords()) ?? []
+        examCategories = (try? await Supa.examCategories()) ?? []
+    }
+
+    func deleteExamRecord(_ record: ExamRecord) async {
+        do {
+            try await Supa.deleteExamRecord(id: record.id)
+            examRecords.removeAll { $0.id == record.id }
+        } catch {
+            errorText = friendly(error)
+        }
+    }
+
+    func updateTamgu(_ first: String, _ second: String) async throws {
+        guard let me = profile else { throw AppError.message("로그인이 필요해요.") }
+        try await Supa.updateTamgu(first, second, userId: me.id)
+        profile?.tamgu1 = first.trimmingCharacters(in: .whitespaces)
+        profile?.tamgu2 = second.trimmingCharacters(in: .whitespaces)
+        TamguNames.apply(profile)
     }
 
     func reload() async {
@@ -134,6 +169,9 @@ final class Store: ObservableObject {
         try? await Supa.client.auth.signOut()
         profile = nil
         submissions = []
+        examRecords = []
+        examCategories = []
+        TamguNames.apply(nil)
         await reload()
     }
 

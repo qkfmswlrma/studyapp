@@ -46,21 +46,23 @@ struct RootView: View {
             if store.loading {
                 SplashView()
             } else {
+                // 시안과 같은 다섯 개다.
+                // 공지와 게임은 탭을 차지할 만큼 자주 열지 않아서 홈에서 들어간다.
                 TabView(selection: $tab) {
                     HomeScreen(authOpen: $authOpen, tab: $tab)
                         .tabItem { Label("홈", systemImage: "house.fill") }
                         .tag(0)
 
-                    PostListScreen(kind: .notice)
-                        .tabItem { Label("공지", systemImage: "megaphone.fill") }
-                        .tag(1)
-
                     PostListScreen(kind: .column)
                         .tabItem { Label("칼럼", systemImage: "book.fill") }
-                        .tag(2)
+                        .tag(1)
 
                     ExamChooserScreen()
                         .tabItem { Label("시험", systemImage: "list.clipboard.fill") }
+                        .tag(2)
+
+                    MockScreen()
+                        .tabItem { Label("모의", systemImage: "timer") }
                         .tag(3)
 
                     RecordsScreen()

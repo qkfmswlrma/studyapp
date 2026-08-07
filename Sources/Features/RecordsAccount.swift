@@ -176,6 +176,8 @@ struct AccountScreen: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var kakaoId = ""
+    @State private var tamgu1 = ""
+    @State private var tamgu2 = ""
     @State private var newPassword = ""
     @State private var note: String?
     @State private var noteIsError = false
@@ -238,6 +240,20 @@ struct AccountScreen: View {
                         }
                     }
 
+                    // 탐구는 사람마다 고른 과목이 달라서 여기서 정한다.
+                    // 모의고사 화면이 "탐구 1" 대신 이 이름을 보여준다.
+                    GlassCard(padding: 18) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("탐구 과목")
+                                .font(.system(size: 13.5, weight: .heavy))
+                                .foregroundStyle(.secondary)
+                            tamguPicker("탐구 1", selection: $tamgu1)
+                            tamguPicker("탐구 2", selection: $tamgu2)
+                            Button("저장") { Task { await saveTamgu() } }
+                                .buttonStyle(GlassButtonStyle(radius: 11))
+                        }
+                    }
+
                     GlassCard(padding: 18) {
                         VStack(alignment: .leading, spacing: 10) {
                             Text("비밀번호 바꾸기")
@@ -278,7 +294,11 @@ struct AccountScreen: View {
         }
         .navigationTitle("내 정보")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { kakaoId = store.profile?.kakaoId ?? "" }
+        .onAppear {
+            kakaoId = store.profile?.kakaoId ?? ""
+            tamgu1 = store.profile?.tamgu1 ?? ""
+            tamgu2 = store.profile?.tamgu2 ?? ""
+        }
         .alert("정말 탈퇴할까요?", isPresented: $confirmDelete) {
             Button("탈퇴", role: .destructive) { Task { await deleteMe() } }
             Button("그만두기", role: .cancel) {}
@@ -291,6 +311,29 @@ struct AccountScreen: View {
         do {
             try await store.updateKakaoId(kakaoId)
             show("닉네임을 저장했어요", error: false)
+        } catch {
+            show(store.message(for: error), error: true)
+        }
+    }
+
+    private func tamguPicker(_ label: String, selection: Binding<String>) -> some View {
+        Picker(label, selection: selection) {
+            Text("고르지 않음").tag("")
+            ForEach(TAMGU_CHOICES, id: \.group) { choice in
+                Section(choice.group) {
+                    ForEach(choice.items, id: \.self) { Text($0).tag($0) }
+                }
+            }
+        }
+        .pickerStyle(.menu)
+        .tint(Theme.purple)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func saveTamgu() async {
+        do {
+            try await store.updateTamgu(tamgu1, tamgu2)
+            show("탐구 과목을 저장했어요", error: false)
         } catch {
             show(store.message(for: error), error: true)
         }

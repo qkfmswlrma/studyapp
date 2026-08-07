@@ -12,17 +12,19 @@ import Foundation
 /// 인자를 안 주면 평소처럼 홈으로 켜지므로 실제 사용자에게는 없는 것과 같다.
 enum Launch {
 
-    /// 켤 때 고를 탭. 0 홈, 1 공지, 2 칼럼, 3 시험, 4 기록
+    /// 켤 때 고를 탭. 0 홈, 1 칼럼, 2 시험, 3 모의고사, 4 기록
     static var tab: Int { Int(value("--tab") ?? "") ?? 0 }
 
     /// 켜자마자 밀고 들어갈 화면
     ///
-    /// | 값 | 열리는 화면 |
-    /// |---|---|
-    /// | `post` | 공지 첫 글 |
-    /// | `exam-list` | 레벨테스트 목록 |
-    /// | `exam-take` | 레벨테스트 첫 시험 응시 |
-    /// | `exam-today` | 오늘의 문제 목록 |
+    /// | 값 | 어느 탭에서 | 열리는 화면 |
+    /// |---|---|---|
+    /// | `notice` | 홈 | 공지 목록 |
+    /// | `post` | 홈 | 공지 첫 글 |
+    /// | `game` | 홈 | 스피드 연산 |
+    /// | `exam-list` | 시험 | 레벨테스트 목록 |
+    /// | `exam-take` | 시험 | 레벨테스트 첫 시험 응시 |
+    /// | `exam-today` | 시험 | 오늘의 문제 목록 |
     static var open: String? { value("--open") }
 
     private static func value(_ key: String) -> String? {

@@ -4,10 +4,17 @@ import SwiftUI
 // 홈
 // ─────────────────────────────────────────────────────────
 
+/// 홈에서만 들어가는 화면. 탭을 차지할 만큼은 아니지만 어딘가에는 있어야 한다.
+enum HomeRoute: Hashable {
+    case notice
+    case game
+}
+
 struct HomeScreen: View {
     @EnvironmentObject var store: Store
     @Binding var authOpen: Bool
     @Binding var tab: Int
+    @State private var path = NavigationPath()
 
     /// 히어로 자리에 올릴 오늘의 문제. 서버가 공개된 것만 내려준다.
     private var todayExam: Exam? { store.exams(of: .today).first }
@@ -21,7 +28,7 @@ struct HomeScreen: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ZStack {
                 AppBackground()
                 ScrollView {
@@ -41,7 +48,7 @@ struct HomeScreen: View {
                         }
 
                         if !feed.isEmpty {
-                            sectionHeader("새 글", more: "모두 보기") { tab = 2 }
+                            sectionHeader("새 글", more: "모두 보기") { tab = 1 }
                                 .padding(.horizontal, 20)
                                 .padding(.top, 26)
                                 .padding(.bottom, 12)
@@ -60,12 +67,14 @@ struct HomeScreen: View {
                             }
                         }
 
+                        // 공지와 게임은 탭을 차지하지 않는다. 시안처럼 홈에서 들어간다.
                         HStack(spacing: 11) {
-                            miniCard("시험", "\(store.exams.count)개", dot: false) { tab = 3 }
                             miniCard("공지사항",
                                      store.notices.contains(where: \.isRule) ? "규칙 고정됨"
                                                                              : "\(store.notices.count)개",
-                                     dot: store.notices.contains { store.isUnread($0) }) { tab = 1 }
+                                     dot: store.notices.contains { store.isUnread($0) },
+                                     route: .notice)
+                            miniCard("스피드 연산", "머리 식히기", dot: false, route: .game)
                         }
                         .padding(.horizontal, 20)
                         .padding(.top, 26)
@@ -93,6 +102,23 @@ struct HomeScreen: View {
             }
             .navigationDestination(for: Post.self) { PostDetailScreen(post: $0) }
             .navigationDestination(for: Exam.self) { ExamEntryScreen(exam: $0) }
+            .navigationDestination(for: HomeRoute.self) { route in
+                switch route {
+                case .notice: PostListScreen(kind: .notice, embedded: true)
+                case .game:   GameScreen(embedded: true)
+                }
+            }
+        }
+        // 화면을 찍을 때만 쓴다. 인자가 없으면 아무 일도 하지 않는다.
+        .task {
+            switch Launch.open {
+            case "notice": path.append(HomeRoute.notice)
+            case "game":   path.append(HomeRoute.game)
+            case "post":
+                path.append(HomeRoute.notice)
+                if let first = store.notices.first { path.append(first) }
+            default: break
+            }
         }
     }
 
@@ -128,8 +154,8 @@ struct HomeScreen: View {
     }
 
     private func miniCard(_ title: String, _ sub: String,
-                          dot: Bool, tap: @escaping () -> Void) -> some View {
-        Button(action: tap) {
+                          dot: Bool, route: HomeRoute) -> some View {
+        NavigationLink(value: route) {
             GlassCard(padding: 16) {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
@@ -270,56 +296,68 @@ enum PostKind {
 struct PostListScreen: View {
     @EnvironmentObject var store: Store
     let kind: PostKind
+    /// 홈에서 밀고 들어온 경우에는 이미 남의 탐색 더미 안이다.
+    /// 그때 또 감싸면 더미가 겹쳐서 뒤로가기가 두 겹이 된다.
+    var embedded = false
+
     @State private var category: PostCategory?
     @State private var path = NavigationPath()
 
     var body: some View {
-        NavigationStack(path: $path) {
-            ZStack {
-                AppBackground()
+        if embedded {
+            content
+        } else {
+            NavigationStack(path: $path) { content }
+                // 화면을 찍을 때만 쓴다. 인자가 없으면 아무 일도 하지 않는다.
+                .task {
+                    guard kind == .notice, Launch.open == "post",
+                          let first = items.first else { return }
+                    path.append(first)
+                }
+        }
+    }
 
-                if kind == .column && !store.loggedIn {
-                    // 비회원에게 "글이 0개" 처럼 보이면 안 된다. 자물쇠 안내를 띄운다.
-                    LockedNote()
-                } else {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 12) {
-                            ScreenTitle(text: kind.title)
+    @ViewBuilder
+    private var content: some View {
+        ZStack {
+            AppBackground()
+
+            if kind == .column && !store.loggedIn {
+                // 비회원에게 "글이 0개" 처럼 보이면 안 된다. 자물쇠 안내를 띄운다.
+                LockedNote()
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ScreenTitle(text: kind.title)
+                            .padding(.horizontal, 20)
+                            .padding(.top, 8)
+                            .padding(.bottom, 2)
+
+                        if kind == .column {
+                            categoryPicker
                                 .padding(.horizontal, 20)
-                                .padding(.top, 8)
-                                .padding(.bottom, 2)
+                        }
 
-                            if kind == .column {
-                                categoryPicker
-                                    .padding(.horizontal, 20)
-                            }
-
-                            if items.isEmpty {
-                                EmptyNote(text: "아직 글이 없어요")
-                                    .padding(.horizontal, 20)
-                            } else {
-                                ForEach(items) { post in
-                                    NavigationLink(value: post) {
-                                        PostRow(post: post)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .padding(.horizontal, 20)
+                        if items.isEmpty {
+                            EmptyNote(text: "아직 글이 없어요")
+                                .padding(.horizontal, 20)
+                        } else {
+                            ForEach(items) { post in
+                                NavigationLink(value: post) {
+                                    PostRow(post: post)
                                 }
+                                .buttonStyle(.plain)
+                                .padding(.horizontal, 20)
                             }
                         }
-                        .padding(.bottom, 24)
                     }
-                    .refreshable { await store.reload() }
+                    .padding(.bottom, 24)
                 }
+                .refreshable { await store.reload() }
             }
-            .navigationDestination(for: Post.self) { PostDetailScreen(post: $0) }
         }
-        // 화면을 찍을 때만 쓴다. 인자가 없으면 아무 일도 하지 않는다.
-        .task {
-            guard kind == .notice, Launch.open == "post",
-                  let first = items.first else { return }
-            path.append(first)
-        }
+        // 홈에서 밀고 들어왔을 때는 홈이 이미 등록해뒀다. 두 번 걸지 않는다.
+        .modifier(PostDestination(active: !embedded))
     }
 
     private var items: [Post] {
@@ -358,6 +396,20 @@ struct PostListScreen: View {
                         .shadow(color: Theme.purple.opacity(0.3), radius: 9, y: 4)
                 }
             }
+    }
+}
+
+/// 글 상세로 가는 길을 등록한다.
+/// 같은 더미에 두 번 걸면 어느 쪽이 이길지 알 수 없어서 한 번만 건다.
+private struct PostDestination: ViewModifier {
+    let active: Bool
+
+    func body(content: Content) -> some View {
+        if active {
+            content.navigationDestination(for: Post.self) { PostDetailScreen(post: $0) }
+        } else {
+            content
+        }
     }
 }
 

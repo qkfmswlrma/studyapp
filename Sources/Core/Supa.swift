@@ -229,6 +229,112 @@ extension Supa {
     }
 }
 
+// ─────────────────────────────────────────────────────────
+// 모의고사
+//
+// 전부 본인 것만 읽고 쓴다. 서버 정책이 user_id = auth.uid() 로 막고 있어서
+// 앱에서 남의 것을 부르려 해도 빈 값만 온다.
+// ─────────────────────────────────────────────────────────
+
+extension Supa {
+
+    static func examRecords() async throws -> [ExamRecord] {
+        try await client.from("exam_records")
+            .select()
+            .order("exam_date", ascending: false)
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+    }
+
+    static func addExamRecord(_ input: ExamRecordInput) async throws -> ExamRecord? {
+        let rows: [ExamRecord] = try await client.from("exam_records")
+            .insert(input).select().execute().value
+        return rows.first
+    }
+
+    static func updateExamRecord(id: UUID, _ input: ExamRecordInput) async throws {
+        try await client.from("exam_records")
+            .update(input).eq("id", value: id).execute()
+    }
+
+    static func deleteExamRecord(id: UUID) async throws {
+        try await client.from("exam_records").delete().eq("id", value: id).execute()
+    }
+
+    static func examCategories() async throws -> [ExamCategory] {
+        try await client.from("exam_categories")
+            .select()
+            .order("created_at", ascending: true)
+            .execute()
+            .value
+    }
+
+    static func addExamCategory(name: String, subject: String?, userId: UUID) async throws {
+        struct Row: Encodable {
+            let user_id: UUID
+            let name: String
+            let subject: String?
+        }
+        try await client.from("exam_categories")
+            .insert(Row(user_id: userId, name: name, subject: subject))
+            .execute()
+    }
+
+    static func deleteExamCategory(id: UUID) async throws {
+        try await client.from("exam_categories").delete().eq("id", value: id).execute()
+    }
+
+    /// 탐구 과목 이름. 사람마다 고른 과목이 달라서 계정에 적어둔다.
+    static func updateTamgu(_ first: String, _ second: String, userId: UUID) async throws {
+        struct Patch: Encodable { let tamgu1: String?; let tamgu2: String? }
+        let clean: (String) -> String? = {
+            let v = $0.trimmingCharacters(in: .whitespaces)
+            return v.isEmpty ? nil : v
+        }
+        try await client.from("profiles")
+            .update(Patch(tamgu1: clean(first), tamgu2: clean(second)))
+            .eq("id", value: userId)
+            .execute()
+    }
+}
+
+// ─────────────────────────────────────────────────────────
+// 게임 랭킹
+//
+// 점수는 표에 바로 못 쓴다. 브라우저 콘솔로 아무 값이나 넣지 못하게
+// 서버 함수가 정답 수와 걸린 시간으로 검산한 뒤에 받아준다.
+// ─────────────────────────────────────────────────────────
+
+extension Supa {
+
+    static func speedRanking(limit: Int = 50) async throws -> [SpeedRank] {
+        try await client.rpc("speed_ranking", params: ["p_limit": limit])
+            .execute().value
+    }
+
+    static func mySpeedRank() async throws -> MySpeedRank? {
+        let rows: [MySpeedRank] = try await client.rpc("my_speed_rank").execute().value
+        return rows.first
+    }
+
+    /// 점수를 올린다. 채팅방 닉네임이 없으면 서버가 거절한다.
+    static func submitSpeedScore(score: Int, correct: Int,
+                                 combo: Int, seconds: Double) async throws {
+        struct Params: Encodable {
+            let p_score: Int
+            let p_correct: Int
+            let p_combo: Int
+            let p_seconds: Double
+        }
+        try await client
+            .rpc("submit_speed_score",
+                 params: Params(p_score: score, p_correct: correct,
+                                p_combo: combo, p_seconds: seconds))
+            .execute()
+    }
+}
+
 enum AppError: LocalizedError {
     case message(String)
     var errorDescription: String? {

@@ -13,6 +13,8 @@ jobs:
     name: 앱 빌드
     runs-on: macos-15
     timeout-minutes: 45
+    permissions:
+      contents: write   # 찍은 화면을 screenshots 가지에 올리려면 필요하다
 
     steps:
       - uses: actions/checkout@v5
@@ -79,6 +81,26 @@ jobs:
           sleep 3
           xcrun simctl io "$DEVICE" screenshot shots/02-home-dark.png
           xcrun simctl shutdown "$DEVICE" || true
+
+      - name: 찍은 화면을 screenshots 가지에 올리기
+        # 결과물(artifact)은 로그인해야 받을 수 있다.
+        # 화면을 눈으로 확인하려면 누구나 볼 수 있는 곳에 있어야 해서 가지 하나에 올린다.
+        if: always()
+        continue-on-error: true
+        run: |
+          if [ -z "$(ls -A shots 2>/dev/null)" ]; then
+            echo "찍은 화면이 없습니다"
+            exit 0
+          fi
+          cp -r shots /tmp/shots
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git switch --orphan screenshots
+          cp /tmp/shots/*.png .
+          git add ./*.png
+          git commit -m "화면 $(echo $GITHUB_SHA | cut -c1-7)"
+          git push -f origin screenshots
+          echo "::notice title=화면::$(ls /tmp/shots | tr '\n' ' ')"
 
       - name: 실기기용 빌드
         # 서명은 애플 개발자 계정이 생긴 뒤에 켠다

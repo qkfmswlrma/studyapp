@@ -83,15 +83,31 @@ jobs:
           xcrun simctl boot "$DEVICE"
           xcrun simctl bootstatus "$DEVICE" -b
           xcrun simctl install "$DEVICE" "$APP"
-          xcrun simctl launch "$DEVICE" app.mathroom.suhakjilmoon
-          sleep 12
           mkdir -p shots
-          xcrun simctl io "$DEVICE" screenshot shots/01-home.png
+          BUNDLE=app.mathroom.suhakjilmoon
+
+          # 탭마다 한 장씩. 홈만 봐서는 어디가 잘못됐는지 알 수 없다.
+          shoot() {   # shoot <탭번호> <파일이름>
+            xcrun simctl terminate "$DEVICE" "$BUNDLE" 2>/dev/null || true
+            xcrun simctl launch "$DEVICE" "$BUNDLE" --tab "$1"
+            sleep 9
+            xcrun simctl io "$DEVICE" screenshot "shots/$2"
+          }
+
+          xcrun simctl ui "$DEVICE" appearance light
+          shoot 0 01-home.png
+          shoot 1 02-notice.png
+          shoot 2 03-column.png
+          shoot 3 04-exam.png
+          shoot 4 05-records.png
+
           # 어두운 화면도 본다
           xcrun simctl ui "$DEVICE" appearance dark
-          sleep 3
-          xcrun simctl io "$DEVICE" screenshot shots/02-home-dark.png
+          shoot 0 06-home-dark.png
+          shoot 1 07-notice-dark.png
+
           xcrun simctl shutdown "$DEVICE" || true
+          ls -la shots
 
       - name: 찍은 화면을 screenshots 가지에 올리기
         # 결과물(artifact)은 로그인해야 받을 수 있다.

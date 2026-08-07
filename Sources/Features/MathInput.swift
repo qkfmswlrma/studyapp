@@ -101,7 +101,7 @@ struct MathInputSheet: View {
                                     .padding(8)
                                     .background(Theme.hairline,
                                                 in: RoundedRectangle(cornerRadius: 11))
-                                Text("네모(□) 자리에 숫자나 글자를 넣으면 돼요")
+                                Text("□ 자리에 숫자나 글자를 넣으면 돼요")
                                     .font(.system(size: 12, weight: .semibold))
                                     .foregroundStyle(Theme.t3)
                             }

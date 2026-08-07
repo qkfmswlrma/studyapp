@@ -25,29 +25,33 @@ struct RecordsScreen: View {
                             .pickerStyle(.segmented)
                             .padding(.horizontal, 20)
 
-                            if rows.isEmpty {
-                                EmptyNote(text: wrongOnly
-                                          ? "틀린 문제가 없어요"
-                                          : "아직 푼 시험이 없어요")
+                            // 다 맞혔을 때도 안내가 떠야 한다.
+                            // 푼 시험이 있는지가 아니라, 지금 보여줄 것이 있는지로 가른다.
+                            if wrongOnly && wrongItems.isEmpty {
+                                EmptyNote(text: rows.isEmpty
+                                          ? "아직 푼 시험이 없어요"
+                                          : "틀린 문제가 없어요")
+                                    .padding(.horizontal, 20)
+                            } else if !wrongOnly && rows.isEmpty {
+                                EmptyNote(text: "아직 푼 시험이 없어요")
                                     .padding(.horizontal, 20)
                             } else if wrongOnly {
+                                Text("틀린 문제만 모았어요. 해설이 있으면 함께 볼 수 있어요")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(Theme.t3)
+                                    .padding(.horizontal, 22)
+
                                 ForEach(wrongItems, id: \.id) { item in
-                                    GlassCard {
-                                        VStack(alignment: .leading, spacing: 10) {
-                                            Text(item.examTitle)
-                                                .font(.system(size: 13, weight: .heavy))
-                                                .foregroundStyle(.secondary)
-                                            QuestionBodyOrLegacy(question: item.question)
-                                            if let accept = item.question.accept, !accept.isEmpty {
-                                                Text("정답  \(accept)")
-                                                    .font(.system(size: 13.5, weight: .bold))
-                                                    .foregroundStyle(Theme.green)
-                                            } else if let ans = item.question.answer {
-                                                Text("정답  \(ans + 1)번")
-                                                    .font(.system(size: 13.5, weight: .bold))
-                                                    .foregroundStyle(Theme.green)
-                                            }
-                                        }
+                                    VStack(alignment: .leading, spacing: 7) {
+                                        Text(item.examTitle)
+                                            .font(.system(size: 12.5, weight: .heavy))
+                                            .foregroundStyle(Theme.t3)
+                                            .padding(.horizontal, 4)
+                                        // 채점 결과와 같은 카드를 쓴다. 내 답과 정답, 해설이 한 벌로 붙어 있다.
+                                        ReviewCard(index: item.index,
+                                                   question: item.question,
+                                                   submission: item.submission,
+                                                   stat: nil)
                                     }
                                     .padding(.horizontal, 20)
                                 }
@@ -84,16 +88,22 @@ struct RecordsScreen: View {
     private struct WrongItem: Identifiable {
         let id: String
         let examTitle: String
+        let index: Int
         let question: Question
+        let submission: Submission
     }
 
     /// 틀린 문제만 모은다. 정답이 지워진 채로 온 시험은 여기 안 나온다.
     private var wrongItems: [WrongItem] {
         rows.flatMap { row in
-            row.exam.questions.compactMap { q in
+            row.exam.questions.indices.compactMap { i -> WrongItem? in
+                let q = row.exam.questions[i]
                 guard !Grading.countsCorrect(q, in: row.sub) else { return nil }
                 return WrongItem(id: "\(row.sub.id)-\(q.id)",
-                                 examTitle: row.exam.title, question: q)
+                                 examTitle: row.exam.title,
+                                 index: i + 1,
+                                 question: q,
+                                 submission: row.sub)
             }
         }
     }
@@ -119,10 +129,10 @@ struct RecordRow: View {
                 }
                 Spacer(minLength: 0)
                 VStack(spacing: 1) {
-                    Text("\(Int(Grading.total(exam, sub)))")
+                    Text(Grading.total(exam, sub).scoreText)
                         .font(.system(size: 20, weight: .heavy))
                         .foregroundStyle(Theme.purple)
-                    Text("/ \(Int(exam.maxScore))")
+                    Text("/ \(exam.maxScore.scoreText)")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(.secondary)
                 }

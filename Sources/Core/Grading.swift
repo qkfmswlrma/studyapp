@@ -51,3 +51,13 @@ enum Grading {
         return isShortCorrect(q, sub.answers[q.id])
     }
 }
+
+extension Double {
+    /// 점수를 사이트와 같은 모양으로 적는다. 20 은 "20", 0.4 는 "0.4".
+    ///
+    /// **Int 로 자르면 안 된다.** 배점은 소수일 수 있어서
+    /// 0.4 점짜리 문항이 "0점" 으로 보이고, 합계도 실제보다 낮게 나온다.
+    var scoreText: String {
+        self == rounded() ? String(Int(rounded())) : String(format: "%g", self)
+    }
+}

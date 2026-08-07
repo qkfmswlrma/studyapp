@@ -323,7 +323,7 @@ struct QuestionCard: View {
                         .foregroundStyle(.white)
                         .frame(width: 26, height: 26)
                         .background(Theme.brand, in: Circle())
-                    Text("\(Int(question.points))점")
+                    Text("\(question.points.scoreText)점")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(.secondary)
                     Spacer()
@@ -462,10 +462,10 @@ struct ScoreCard: View {
                                 style: StrokeStyle(lineWidth: 14, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                     VStack(spacing: 2) {
-                        Text("\(Int(score))")
+                        Text(score.scoreText)
                             .font(.system(size: 34, weight: .heavy))
                             .foregroundStyle(.primary)
-                        Text("/ \(Int(exam.maxScore))점")
+                        Text("/ \(exam.maxScore.scoreText)점")
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(.secondary)
                     }

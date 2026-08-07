@@ -37,41 +37,76 @@ struct MathLabel: UIViewRepresentable {
 
 /// 글과 수식이 한 줄 안에서 섞이고, 넘치면 다음 줄로 넘어간다.
 /// 문장 중간에 수식이 들어가는 문제가 많아서 줄바꿈이 자연스러워야 한다.
+///
+/// **줄 안에서는 기준선을 맞춘다.** 위를 맞추면 수식이 글보다 낮아서
+/// 글자 위로 떠올라 위첨자처럼 보인다. 글의 기준선은 SwiftUI 가 알려주고,
+/// 수식 덩이는 아래쪽이 곧 기준선이다.
 struct FlowLayout: Layout {
     var spacing: CGFloat = 3
     var lineSpacing: CGFloat = 6
 
+    /// 한 줄에 들어간 조각들과, 그 줄의 기준선 위아래 높이
+    private struct Line {
+        var items: [(index: Int, size: CGSize, baseline: CGFloat)] = []
+        var width: CGFloat = 0
+        /// 줄 맨 위에서 기준선까지
+        var ascent: CGFloat = 0
+        /// 기준선에서 줄 맨 아래까지
+        var descent: CGFloat = 0
+        var height: CGFloat { ascent + descent }
+    }
+
+    private func lines(_ subviews: Subviews, maxWidth: CGFloat) -> [Line] {
+        var out: [Line] = []
+        var line = Line()
+
+        for index in subviews.indices {
+            let dims = subviews[index].dimensions(in: .unspecified)
+            let size = CGSize(width: dims.width, height: dims.height)
+            // 글은 진짜 기준선을, 수식은 아래쪽을 돌려준다
+            let baseline = dims[.lastTextBaseline]
+
+            if !line.items.isEmpty, line.width + size.width > maxWidth {
+                out.append(line)
+                line = Line()
+            }
+            line.items.append((index: index, size: size, baseline: baseline))
+            line.width += size.width + spacing
+            line.ascent = max(line.ascent, baseline)
+            line.descent = max(line.descent, size.height - baseline)
+        }
+        if !line.items.isEmpty { out.append(line) }
+        return out
+    }
+
+    private func totalHeight(_ lines: [Line]) -> CGFloat {
+        guard !lines.isEmpty else { return 0 }
+        return lines.reduce(0) { $0 + $1.height }
+            + lineSpacing * CGFloat(lines.count - 1)
+    }
+
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let maxWidth = proposal.width ?? .greatestFiniteMagnitude
-        var x: CGFloat = 0, y: CGFloat = 0, lineHeight: CGFloat = 0
-        for sub in subviews {
-            let size = sub.sizeThatFits(.unspecified)
-            if x > 0, x + size.width > maxWidth {
-                x = 0
-                y += lineHeight + lineSpacing
-                lineHeight = 0
-            }
-            x += size.width + spacing
-            lineHeight = max(lineHeight, size.height)
-        }
-        return CGSize(width: maxWidth == .greatestFiniteMagnitude ? x : maxWidth,
-                      height: y + lineHeight)
+        let rows = lines(subviews, maxWidth: maxWidth)
+        let width = maxWidth == .greatestFiniteMagnitude
+            ? (rows.map(\.width).max() ?? 0)
+            : maxWidth
+        return CGSize(width: width, height: totalHeight(rows))
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize,
                        subviews: Subviews, cache: inout ()) {
-        var x = bounds.minX, y = bounds.minY, lineHeight: CGFloat = 0
-        for sub in subviews {
-            let size = sub.sizeThatFits(.unspecified)
-            if x > bounds.minX, x + size.width > bounds.maxX {
-                x = bounds.minX
-                y += lineHeight + lineSpacing
-                lineHeight = 0
+        var y = bounds.minY
+        for line in lines(subviews, maxWidth: bounds.width) {
+            var x = bounds.minX
+            for item in line.items {
+                // 기준선을 줄의 기준선에 붙인다. 조각마다 높이가 달라도 글씨가 나란히 앉는다.
+                subviews[item.index].place(
+                    at: CGPoint(x: x, y: y + line.ascent - item.baseline),
+                    proposal: ProposedViewSize(item.size))
+                x += item.size.width + spacing
             }
-            // 같은 줄 안에서 아래쪽을 맞춘다. 수식이 글보다 크기 때문
-            sub.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
-            x += size.width + spacing
-            lineHeight = max(lineHeight, size.height)
+            y += line.height + lineSpacing
         }
     }
 }

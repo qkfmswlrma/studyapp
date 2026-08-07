@@ -11,6 +11,8 @@ final class Store: ObservableObject {
     @Published var exams: [Exam] = []
     @Published var submissions: [Submission] = []
     @Published var examStats: [UUID: ExamStat] = [:]
+    @Published var readPosts: Set<UUID> = []
+    @Published var readExams: Set<UUID> = []
 
     @Published var loading = true
     @Published var errorText: String?
@@ -81,9 +83,27 @@ final class Store: ObservableObject {
 
         if loggedIn {
             submissions = (try? await Supa.mySubmissions()) ?? []
+            readPosts = (try? await Supa.readPostIds()) ?? []
+            readExams = (try? await Supa.readExamIds()) ?? []
         } else {
             submissions = []
+            readPosts = []
+            readExams = []
         }
+    }
+
+    /// 아직 안 읽은 글인지. 비회원에게는 표시하지 않는다.
+    /// 내가 쓴 글은 안 읽음으로 두지 않는다.
+    func isUnread(_ post: Post) -> Bool {
+        guard loggedIn else { return false }
+        if post.authorId == profile?.id { return false }
+        return !readPosts.contains(post.id)
+    }
+
+    func isUnread(_ exam: Exam) -> Bool {
+        guard loggedIn else { return false }
+        if exam.authorId == profile?.id { return false }
+        return !readExams.contains(exam.id)
     }
 
     // ── 로그인 ──────────────────────────────────────────
@@ -129,14 +149,41 @@ final class Store: ObservableObject {
         return sub
     }
 
+    /// 비회원 제출. 기록은 안 남지만 정답률에는 들어간다.
+    func submitAsGuest(exam: Exam, answers: [String: JSONValue]) async throws {
+        try await Supa.submitGuest(examId: exam.id, answers: answers)
+        examStats = (try? await Supa.allExamStats()) ?? examStats
+    }
+
     func markRead(post: Post) async {
         guard let me = profile else { return }
         try? await Supa.markRead(postId: post.id, userId: me.id)
+        readPosts.insert(post.id)
     }
 
     func markRead(exam: Exam) async {
         guard let me = profile else { return }
         try? await Supa.markRead(examId: exam.id, userId: me.id)
+        readExams.insert(exam.id)
+    }
+
+    // ── 계정 ────────────────────────────────────────────
+
+    func changePassword(_ new: String) async throws {
+        guard new.count >= 6 else { throw AppError.message("비밀번호는 6자 이상이어야 해요.") }
+        try await Supa.changePassword(new)
+    }
+
+    func updateKakaoId(_ value: String) async throws {
+        guard let me = profile else { throw AppError.message("로그인이 필요해요.") }
+        try await Supa.updateKakaoId(value, userId: me.id)
+        profile?.kakaoId = value.trimmingCharacters(in: .whitespaces)
+    }
+
+    /// 탈퇴. 되돌릴 수 없다.
+    func deleteMyAccount() async throws {
+        try await Supa.deleteMyAccount()
+        await signOut()
     }
 
     private func friendly(_ error: Error) -> String {

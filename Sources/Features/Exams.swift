@@ -105,6 +105,7 @@ struct ExamListScreen: View {
 }
 
 struct ExamRow: View {
+    @EnvironmentObject var store: Store
     let exam: Exam
     let stat: ExamStat?
     let solved: Bool
@@ -117,6 +118,9 @@ struct ExamRow: View {
                         .font(.system(size: 16, weight: .heavy))
                         .foregroundStyle(.primary)
                         .multilineTextAlignment(.leading)
+                    if store.isUnread(exam) {
+                        Circle().fill(Theme.red).frame(width: 7, height: 7)
+                    }
                     Spacer(minLength: 0)
                     if solved {
                         Text("푼 문제")
@@ -178,6 +182,7 @@ struct TakeExamScreen: View {
     @State private var submitting = false
     @State private var error: String?
     @State private var result: (Exam, Submission)?
+    @State private var guestDone = false
 
     var body: some View {
         ZStack {
@@ -185,6 +190,8 @@ struct TakeExamScreen: View {
 
             if let result {
                 ReviewScreen(exam: result.0, submission: result.1)
+            } else if guestDone {
+                GuestDoneNote()
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
@@ -199,21 +206,22 @@ struct TakeExamScreen: View {
                                 .foregroundStyle(Theme.red)
                         }
 
-                        if store.loggedIn {
-                            Button(submitting ? "제출 중…" : "제출하기") {
-                                Task { await submit() }
-                            }
-                            .buttonStyle(BrandButtonStyle())
-                            .disabled(submitting || !allAnswered)
-                            .opacity(allAnswered ? 1 : 0.5)
+                        Button(submitting ? "제출 중…" : "제출하기") {
+                            Task { await submit() }
+                        }
+                        .buttonStyle(BrandButtonStyle())
+                        .disabled(submitting || !allAnswered)
+                        .opacity(allAnswered ? 1 : 0.5)
 
-                            if !allAnswered {
-                                Text("아직 답하지 않은 문제가 있어요")
-                                    .font(.system(size: 12.5, weight: .semibold))
-                                    .foregroundStyle(.secondary)
-                                    .frame(maxWidth: .infinity)
-                            }
-                        } else {
+                        if !allAnswered {
+                            Text("아직 답하지 않은 문제가 있어요")
+                                .font(.system(size: 12.5, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity)
+                        }
+
+                        // 비회원도 풀 수 있다. 기록만 안 남는다.
+                        if !store.loggedIn {
                             GlassCard {
                                 Text("로그인하면 푼 기록이 남고 오답노트에서 다시 볼 수 있어요")
                                     .font(.system(size: 13.5, weight: .semibold))
@@ -247,14 +255,40 @@ struct TakeExamScreen: View {
         submitting = true
         defer { submitting = false }
         do {
-            let sub = try await store.submit(exam: exam, answers: answers)
-            // 제출하면 서버가 정답을 붙여서 다시 내준다. 그걸 받아 채점 화면에 쓴다.
-            let fresh = try? await Supa.exam(id: exam.id)
-            let full = fresh.map { exam.merging(answersFrom: $0.questions) } ?? exam
-            result = (full, sub)
+            if store.loggedIn {
+                let sub = try await store.submit(exam: exam, answers: answers)
+                // 제출하면 서버가 정답을 붙여서 다시 내준다. 그걸 받아 채점 화면에 쓴다.
+                let fresh = try? await Supa.exam(id: exam.id)
+                let full = fresh.map { exam.merging(answersFrom: $0.questions) } ?? exam
+                result = (full, sub)
+            } else {
+                // 비회원은 표에 못 쓴다. 서버 함수로만 들어가고 하루 한 번만 받아준다.
+                try await store.submitAsGuest(exam: exam, answers: answers)
+                guestDone = true
+            }
         } catch {
             self.error = store.message(for: error)
         }
+    }
+}
+
+/// 비회원이 냈을 때. 채점 결과를 보여줄 수 없다.
+/// 정답을 내주면 로그인 없이 답만 긁어갈 수 있어서 서버가 안 준다.
+struct GuestDoneNote: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 44, weight: .bold))
+                .foregroundStyle(Theme.green)
+            Text("냈어요")
+                .font(.system(size: 19, weight: .heavy))
+                .foregroundStyle(.primary)
+            Text("로그인하고 풀면 채점 결과와 해설을 바로 볼 수 있어요")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(30)
     }
 }
 

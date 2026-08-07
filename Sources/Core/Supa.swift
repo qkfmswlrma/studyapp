@@ -166,6 +166,53 @@ extension Supa {
         return row
     }
 
+    /// 비회원 제출. 표를 직접 못 쓰고 이 함수로만 들어간다.
+    /// 서버가 IP 로 하루 한 번만 받아준다.
+    static func submitGuest(examId: UUID, answers: [String: JSONValue]) async throws {
+        struct Params: Encodable {
+            let p_exam_id: UUID
+            let p_answers: [String: JSONValue]
+        }
+        try await client
+            .rpc("submit_guest_attempt", params: Params(p_exam_id: examId, p_answers: answers))
+            .execute()
+    }
+
+    // ── 계정 ────────────────────────────────────────────
+
+    static func changePassword(_ newPassword: String) async throws {
+        _ = try await client.auth.update(user: UserAttributes(password: newPassword))
+    }
+
+    static func updateKakaoId(_ value: String, userId: UUID) async throws {
+        struct Patch: Encodable { let kakao_id: String }
+        try await client.from("profiles")
+            .update(Patch(kakao_id: value.trimmingCharacters(in: .whitespaces)))
+            .eq("id", value: userId)
+            .execute()
+    }
+
+    /// 탈퇴. 되돌릴 수 없다.
+    static func deleteMyAccount() async throws {
+        try await client.rpc("delete_my_account").execute()
+    }
+
+    // ── 안 읽음 표시 ────────────────────────────────────
+
+    static func readPostIds() async throws -> Set<UUID> {
+        struct Row: Decodable { let column_id: UUID }
+        let rows: [Row] = try await client.from("column_reads")
+            .select("column_id").execute().value
+        return Set(rows.map(\.column_id))
+    }
+
+    static func readExamIds() async throws -> Set<UUID> {
+        struct Row: Decodable { let exam_id: UUID }
+        let rows: [Row] = try await client.from("exam_reads")
+            .select("exam_id").execute().value
+        return Set(rows.map(\.exam_id))
+    }
+
     /// 읽음 표시. 안 읽은 글에 붙는 점을 없앤다.
     static func markRead(postId: UUID, userId: UUID) async throws {
         struct Row: Encodable { let user_id: UUID; let column_id: UUID }

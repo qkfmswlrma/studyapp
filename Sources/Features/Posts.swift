@@ -188,6 +188,7 @@ struct PostListScreen: View {
 }
 
 struct PostRow: View {
+    @EnvironmentObject var store: Store
     let post: Post
 
     var body: some View {
@@ -205,6 +206,10 @@ struct PostRow: View {
                         .font(.system(size: 15.5, weight: .heavy))
                         .foregroundStyle(Theme.t1)
                         .multilineTextAlignment(.leading)
+                    // 아직 안 읽은 글에 붙는 점
+                    if store.isUnread(post) {
+                        Circle().fill(Theme.red).frame(width: 7, height: 7)
+                    }
                     Spacer(minLength: 0)
                 }
                 HStack(spacing: 6) {

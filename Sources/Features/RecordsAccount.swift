@@ -162,6 +162,12 @@ struct AccountScreen: View {
     @EnvironmentObject var store: Store
     @Environment(\.dismiss) private var dismiss
 
+    @State private var kakaoId = ""
+    @State private var newPassword = ""
+    @State private var note: String?
+    @State private var noteIsError = false
+    @State private var confirmDelete = false
+
     var body: some View {
         ZStack {
             AppBackground()
@@ -201,6 +207,44 @@ struct AccountScreen: View {
                         }
                     }
 
+                    GlassCard(padding: 18) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("채팅방 닉네임")
+                                .font(.system(size: 13.5, weight: .heavy))
+                                .foregroundStyle(.secondary)
+                            HStack(spacing: 8) {
+                                TextField("닉네임", text: $kakaoId)
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                                    .padding(12)
+                                    .background(Theme.hairline, in: RoundedRectangle(cornerRadius: 11))
+                                Button("저장") { Task { await saveKakao() } }
+                                    .buttonStyle(GlassButtonStyle(radius: 11))
+                            }
+                        }
+                    }
+
+                    GlassCard(padding: 18) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("비밀번호 바꾸기")
+                                .font(.system(size: 13.5, weight: .heavy))
+                                .foregroundStyle(.secondary)
+                            SecureField("새 비밀번호", text: $newPassword)
+                                .font(.system(size: 15, weight: .semibold))
+                                .padding(12)
+                                .background(Theme.hairline, in: RoundedRectangle(cornerRadius: 11))
+                            Button("바꾸기") { Task { await savePassword() } }
+                                .buttonStyle(GlassButtonStyle(radius: 11))
+                        }
+                    }
+
+                    if let note {
+                        Text(note)
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(noteIsError ? Theme.red : Theme.green)
+                    }
+
                     Button("로그아웃") {
                         Task {
                             await store.signOut()
@@ -209,12 +253,58 @@ struct AccountScreen: View {
                     }
                     .buttonStyle(GlassButtonStyle())
                     .frame(maxWidth: .infinity)
+
+                    Button("탈퇴하기") { confirmDelete = true }
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Theme.t3)
+                        .underline()
+                        .padding(.top, 4)
                 }
                 .padding(20)
             }
         }
         .navigationTitle("내 정보")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { kakaoId = store.profile?.kakaoId ?? "" }
+        .alert("정말 탈퇴할까요?", isPresented: $confirmDelete) {
+            Button("탈퇴", role: .destructive) { Task { await deleteMe() } }
+            Button("그만두기", role: .cancel) {}
+        } message: {
+            Text("푼 기록과 오답노트가 모두 지워지고 되돌릴 수 없어요.")
+        }
+    }
+
+    private func saveKakao() async {
+        do {
+            try await store.updateKakaoId(kakaoId)
+            show("닉네임을 저장했어요", error: false)
+        } catch {
+            show(store.message(for: error), error: true)
+        }
+    }
+
+    private func savePassword() async {
+        do {
+            try await store.changePassword(newPassword)
+            newPassword = ""
+            show("비밀번호를 바꿨어요", error: false)
+        } catch {
+            show(store.message(for: error), error: true)
+        }
+    }
+
+    private func deleteMe() async {
+        do {
+            try await store.deleteMyAccount()
+            dismiss()
+        } catch {
+            show(store.message(for: error), error: true)
+        }
+    }
+
+    private func show(_ text: String, error: Bool) {
+        note = text
+        noteIsError = error
     }
 
     private func infoRow(_ label: String, _ value: String) -> some View {

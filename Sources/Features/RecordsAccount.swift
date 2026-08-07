@@ -168,7 +168,7 @@ struct AccountScreen: View {
             AppBackground()
             ScrollView {
                 VStack(spacing: 14) {
-                    GlassCard(padding: 24, material: .regularMaterial) {
+                    GlassCard(padding: 24, material: .regularMaterial, frosted: true) {
                         VStack(spacing: 12) {
                             Text(String(store.profile?.username.prefix(1) ?? "?"))
                                 .font(.system(size: 26, weight: .heavy))

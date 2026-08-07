@@ -67,6 +67,42 @@ struct AppBackground: View {
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
+        Group {
+            if #available(iOS 18.0, *) {
+                // 색이 사방에서 다르게 섞이는 바탕.
+                // 유리는 뒤에 있는 것을 휘어 보여주는 물건이라, 뒤가 밋밋하면
+                // 아무리 좋은 유리를 써도 그냥 허연 판으로 보인다.
+                // 흐릿한 덩어리 몇 개로는 부족하고 색이 확실히 갈려야 한다.
+                MeshGradient(width: 3, height: 4, points: [
+                    [0.0, 0.0], [0.5, 0.0], [1.0, 0.0],
+                    [0.0, 0.35], [0.6, 0.28], [1.0, 0.35],
+                    [0.0, 0.68], [0.4, 0.72], [1.0, 0.68],
+                    [0.0, 1.0], [0.5, 1.0], [1.0, 1.0],
+                ], colors: mesh)
+                .ignoresSafeArea()
+            } else {
+                fallback
+            }
+        }
+    }
+
+    private var mesh: [Color] {
+        scheme == .dark
+        ? [
+            Color(hex: 0x2A1B4D), Color(hex: 0x3B1F52), Color(hex: 0x1C1836),
+            Color(hex: 0x4A2478), Color(hex: 0x6B2E7A), Color(hex: 0x241C4A),
+            Color(hex: 0x2E1F5C), Color(hex: 0x7A2E5E), Color(hex: 0x1B2350),
+            Color(hex: 0x161226), Color(hex: 0x2A1B3D), Color(hex: 0x141B33),
+        ]
+        : [
+            Color(hex: 0xD9B8FF), Color(hex: 0xF3C4E6), Color(hex: 0xC9D4FF),
+            Color(hex: 0xB98CFF), Color(hex: 0xFFB3D9), Color(hex: 0xA9C0FF),
+            Color(hex: 0xE0C6FF), Color(hex: 0xFFC9E4), Color(hex: 0x9FB6FF),
+            Color(hex: 0xF0E4FF), Color(hex: 0xFFE0F0), Color(hex: 0xD6E0FF),
+        ]
+    }
+
+    private var fallback: some View {
         ZStack {
             LinearGradient(
                 stops: [
@@ -79,18 +115,9 @@ struct AppBackground: View {
             GeometryReader { geo in
                 let w = geo.size.width
                 let h = geo.size.height
-
-                // 카드가 놓이는 자리(위쪽 3분의 1)를 일부러 가로지르게 둔다.
-                // 유리는 뒤에 색이 변하는 곳을 지나가야 유리로 보인다.
-                // 배경이 고르면 굴절시킬 게 없어서 그냥 허연 판이 된다.
-                blob(Theme.purple, size: w * 1.25)
-                    .position(x: w * 0.05, y: h * 0.10)
-                blob(Theme.pink, size: w * 1.05)
-                    .position(x: w * 1.00, y: h * 0.30)
-                blob(Theme.blue, size: w * 1.30)
-                    .position(x: w * 0.35, y: h * 0.62)
-                blob(Theme.purple, size: w * 0.9)
-                    .position(x: w * 0.95, y: h * 0.88)
+                blob(Theme.purple, size: w * 1.25).position(x: w * 0.05, y: h * 0.10)
+                blob(Theme.pink, size: w * 1.05).position(x: w * 1.00, y: h * 0.30)
+                blob(Theme.blue, size: w * 1.30).position(x: w * 0.35, y: h * 0.62)
             }
             .ignoresSafeArea()
         }
@@ -101,9 +128,8 @@ struct AppBackground: View {
         Circle()
             .fill(color)
             .frame(width: size, height: size)
-            // 밝은 화면에서 옅게 깔면 유리가 배경에 묻힌다. 진하게 둔다.
             .opacity(scheme == .dark ? 0.26 : 0.55)
-            .blur(radius: size * 0.30)
+            .blur(radius: size * 0.22)
     }
 }
 
@@ -144,11 +170,16 @@ extension View {
     ///
     /// - `material`: 리퀴드 글래스를 못 쓸 때 대신 쓸 유리 두께.
     /// - `interactive`: 눌리는 것인지. 리퀴드 글래스는 누르면 유리가 눌리듯 반응한다.
+    /// - `frosted`: 뒤를 가리는 서리유리로 할지.
+    ///   기본은 **맑은 유리**다. 뒤가 그대로 비치고 가장자리에서 휘어야 유리로 보인다.
+    ///   서리유리(`.regular`)로 하면 허옇게 뜬 판이 된다.
+    ///   글이 빽빽해서 뒤가 비치면 읽기 힘든 곳에만 서리유리를 쓴다.
     @ViewBuilder
     func glass(radius: CGFloat = Theme.radius,
                material: Material = .ultraThinMaterial,
                shadow: Bool = true,
                interactive: Bool = false,
+               frosted: Bool = false,
                tint: Color? = nil) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
 
@@ -156,7 +187,7 @@ extension View {
         if #available(iOS 26.0, *) {
             self
                 .glassEffect(
-                    liquid(interactive: interactive, tint: tint),
+                    liquid(interactive: interactive, frosted: frosted, tint: tint),
                     in: shape)
                 // 리퀴드 글래스는 테두리와 그림자를 스스로 그린다.
                 // 여기서 또 그으면 두 겹이 되어 지저분해진다.
@@ -171,8 +202,8 @@ extension View {
 
     #if compiler(>=6.2)
     @available(iOS 26.0, *)
-    private func liquid(interactive: Bool, tint: Color?) -> Glass {
-        var g = Glass.regular
+    private func liquid(interactive: Bool, frosted: Bool, tint: Color?) -> Glass {
+        var g: Glass = frosted ? .regular : .clear
         if let tint { g = g.tint(tint) }
         if interactive { g = g.interactive() }
         return g
@@ -219,13 +250,15 @@ struct GlassCard<Content: View>: View {
     var padding: CGFloat = 20
     var radius: CGFloat = Theme.radius
     var material: Material = .ultraThinMaterial
+    /// 글이 빽빽해서 뒤가 비치면 읽기 힘든 곳만 켠다
+    var frosted: Bool = false
     @ViewBuilder var content: Content
 
     var body: some View {
         content
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .glass(radius: radius, material: material)
+            .glass(radius: radius, material: material, frosted: frosted)
     }
 }
 

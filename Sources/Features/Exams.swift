@@ -401,7 +401,7 @@ struct ScoreCard: View {
     private var ratio: Double { exam.maxScore > 0 ? score / exam.maxScore : 0 }
 
     var body: some View {
-        GlassCard(padding: 24, material: .regularMaterial) {
+        GlassCard(padding: 24, material: .regularMaterial, frosted: true) {
             VStack(spacing: 14) {
                 ZStack {
                     Circle()

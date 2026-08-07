@@ -302,6 +302,8 @@ struct PostListScreen: View {
 
     @State private var category: PostCategory?
     @State private var path = NavigationPath()
+    @State private var writing = false
+    @State private var editing: Post?
 
     var body: some View {
         if embedded {
@@ -348,6 +350,15 @@ struct PostListScreen: View {
                                 }
                                 .buttonStyle(.plain)
                                 .padding(.horizontal, 20)
+                                .contextMenu {
+                                    // 남이 쓴 글은 root 만 고친다. 서버 정책도 같다.
+                                    if store.canEdit(post) {
+                                        Button("고치기") { editing = post }
+                                        Button("지우기", role: .destructive) {
+                                            Task { await store.deletePost(post) }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -358,6 +369,22 @@ struct PostListScreen: View {
         }
         // 홈에서 밀고 들어왔을 때는 홈이 이미 등록해뒀다. 두 번 걸지 않는다.
         .modifier(PostDestination(active: !embedded))
+        .toolbar {
+            if store.isAdmin {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { writing = true } label: {
+                        Image(systemName: "square.and.pencil")
+                            .foregroundStyle(Theme.purple)
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $writing) {
+            PostEditorSheet(post: nil, kind: kind)
+        }
+        .sheet(item: $editing) { post in
+            PostEditorSheet(post: post, kind: kind)
+        }
     }
 
     private var items: [Post] {

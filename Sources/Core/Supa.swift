@@ -384,6 +384,20 @@ extension Supa {
             .execute()
     }
 
+    // ── 칼럼과 공지 ─────────────────────────────────────
+
+    static func savePost(_ input: PostInput) async throws {
+        try await client.from("columns").insert(input).execute()
+    }
+
+    static func updatePost(id: UUID, _ patch: PostPatch) async throws {
+        try await client.from("columns").update(patch).eq("id", value: id).execute()
+    }
+
+    static func deletePost(id: UUID) async throws {
+        try await client.from("columns").delete().eq("id", value: id).execute()
+    }
+
     // ── 출제 ────────────────────────────────────────────
     //
     // 쓸 때는 exams 표에 직접 넣는다. exams_view 는 읽기 전용이다.

@@ -326,6 +326,28 @@ struct ExamPatch: Encodable {
 }
 
 // ─────────────────────────────────────────────────────────
+// 칼럼과 공지 쓰기
+// ─────────────────────────────────────────────────────────
+
+struct PostInput: Encodable {
+    let title: String
+    let body: String
+    let author: String
+    let author_id: UUID
+    let category: String
+    let is_draft: Bool
+    let is_rule: Bool
+}
+
+struct PostPatch: Encodable {
+    let title: String
+    let body: String
+    let category: String
+    let is_draft: Bool
+    let is_rule: Bool
+}
+
+// ─────────────────────────────────────────────────────────
 // 활동 기록
 // ─────────────────────────────────────────────────────────
 

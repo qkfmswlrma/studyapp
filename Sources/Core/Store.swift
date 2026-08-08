@@ -184,7 +184,8 @@ final class Store: ObservableObject {
 
     func signIn(username: String, password: String) async throws {
         _ = try await Supa.client.auth.signIn(
-            email: Supa.email(for: username), password: password)
+            email: Supa.email(for: username),
+            password: Supa.password(password))
         await refreshSession()
         await reload()
     }
@@ -196,7 +197,7 @@ final class Store: ObservableObject {
 
         _ = try await Supa.client.auth.signUp(
             email: Supa.email(for: name),
-            password: password,
+            password: Supa.password(password),
             data: ["username": .string(name)])
         // 가입하면 바로 로그인된다. 프로필은 서버 트리거가 만든다.
         try? await Task.sleep(nanoseconds: 400_000_000)

@@ -12,9 +12,20 @@ enum Supa {
     /// 앱도 똑같이 해야 사이트에서 가입한 사람이 그대로 로그인된다.
     static let emailDomain = "mathroom.app"
 
+    /// 사이트의 `emailOf` 와 같아야 한다 (_source.html 95줄).
+    /// **소문자로 바꾸는 것을 빼먹으면 안 된다.** 대문자가 섞인 아이디로 가입한 사람이
+    /// 앱에서만 로그인이 안 된다.
     static func email(for username: String) -> String {
-        "\(username.trimmingCharacters(in: .whitespaces))@\(emailDomain)"
+        "\(username.trimmingCharacters(in: .whitespaces).lowercased())@\(emailDomain)"
     }
+
+    /// 사이트의 `padPw` 와 같아야 한다 (_source.html 96줄).
+    ///
+    /// 사이트는 비밀번호 뒤에 이 꼬리를 붙여서 Supabase 에 보낸다.
+    /// **붙이지 않으면 사이트에서 가입한 사람이 앱에서 로그인되지 않고,
+    /// 앱에서 가입한 사람이 사이트에서 로그인되지 않는다.**
+    /// 서버의 비밀번호 초기화도 `0000__mr__` 로 넣는다.
+    static func password(_ raw: String) -> String { raw + "__mr__" }
 
     static let client: SupabaseClient = {
         SupabaseClient(
@@ -181,7 +192,8 @@ extension Supa {
     // ── 계정 ────────────────────────────────────────────
 
     static func changePassword(_ newPassword: String) async throws {
-        _ = try await client.auth.update(user: UserAttributes(password: newPassword))
+        _ = try await client.auth.update(
+            user: UserAttributes(password: password(newPassword)))
     }
 
     static func updateKakaoId(_ value: String, userId: UUID) async throws {

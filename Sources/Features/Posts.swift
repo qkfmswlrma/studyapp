@@ -8,6 +8,7 @@ import SwiftUI
 enum HomeRoute: Hashable {
     case notice
     case game
+    case daily
 }
 
 struct HomeScreen: View {
@@ -38,7 +39,7 @@ struct HomeScreen: View {
                             .padding(.bottom, 18)
 
                         if let todayExam {
-                            NavigationLink(value: todayExam) {
+                            NavigationLink(value: HomeRoute.daily) {
                                 TodayHeroCard(exam: todayExam,
                                               stat: store.examStats[todayExam.id],
                                               solved: store.mySubmission(examId: todayExam.id) != nil)
@@ -106,6 +107,7 @@ struct HomeScreen: View {
                 switch route {
                 case .notice: PostListScreen(kind: .notice, embedded: true)
                 case .game:   GameScreen(embedded: true)
+                case .daily:  DailyPuzzleScreen()
                 }
             }
         }

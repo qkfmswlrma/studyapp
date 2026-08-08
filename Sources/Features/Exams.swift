@@ -36,7 +36,14 @@ struct ExamChooserScreen: View {
                     .padding(.bottom, 24)
                 }
             }
-            .navigationDestination(for: ExamType.self) { ExamListScreen(type: $0) }
+            // 오늘의 문제는 목록을 거치지 않는다. 하루에 하나뿐이라 바로 연다.
+            .navigationDestination(for: ExamType.self) { type in
+                if type == .today {
+                    DailyPuzzleScreen()
+                } else {
+                    ExamListScreen(type: type)
+                }
+            }
             .navigationDestination(for: Exam.self) { ExamEntryScreen(exam: $0) }
         }
         // 화면을 찍을 때만 쓴다. 인자가 없으면 아무 일도 하지 않는다.

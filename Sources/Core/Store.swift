@@ -52,6 +52,46 @@ final class Store: ObservableObject {
         submissions.first { $0.examId == examId }
     }
 
+    // ── 오늘의 문제 ─────────────────────────────────────
+
+    /// 그날 낸 문제. 공개 시각이 없으면 만든 날로 본다.
+    func dailyExam(on date: Date) -> Exam? {
+        let cal = Calendar.current
+        return exams(of: .today).first { exam in
+            guard let day = exam.publishAt ?? exam.createdAt else { return false }
+            return cal.isDate(day, inSameDayAs: date)
+        }
+    }
+
+    /// 며칠 연속으로 풀었는지.
+    ///
+    /// 오늘 것을 아직 안 풀었어도 어제까지 이어졌으면 끊기지 않은 것으로 센다.
+    /// 하루가 다 가기 전에 연속이 끊긴 것처럼 보이면 안 된다.
+    /// **문제가 없던 날은 건너뛴다.** 안 낸 날 때문에 기록이 끊기면 억울하다.
+    var dailyStreak: Int {
+        guard loggedIn else { return 0 }
+        let cal = Calendar.current
+        var count = 0
+        var day = Date()
+
+        // 오늘 것을 아직 안 풀었으면 어제부터 센다
+        if let today = dailyExam(on: day), mySubmission(examId: today.id) == nil {
+            guard let yesterday = cal.date(byAdding: .day, value: -1, to: day) else { return 0 }
+            day = yesterday
+        }
+
+        // 너무 옛날까지 훑지 않는다. 400일이면 충분하다
+        for _ in 0..<400 {
+            if let exam = dailyExam(on: day) {
+                guard mySubmission(examId: exam.id) != nil else { break }
+                count += 1
+            }
+            guard let before = cal.date(byAdding: .day, value: -1, to: day) else { break }
+            day = before
+        }
+        return count
+    }
+
     /// 내가 쓴 글은 내가, 남이 쓴 것은 root 만 고친다.
     func canEdit(_ post: Post) -> Bool {
         guard isAdmin else { return false }

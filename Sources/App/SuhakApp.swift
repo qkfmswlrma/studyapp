@@ -86,16 +86,9 @@ struct SplashView: View {
                 .font(.system(size: 26, weight: .heavy))
                 .foregroundStyle(.white)
                 .frame(width: 56, height: 56)
-                .background {
-                    RoundedRectangle(cornerRadius: 17, style: .continuous)
-                        .fill(Theme.brand)
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 17, style: .continuous)
-                                .fill(LinearGradient(colors: [.white.opacity(0.4), .clear],
-                                                     startPoint: .top, endPoint: .center))
-                        }
-                }
-                .shadow(color: Theme.purple.opacity(0.4), radius: 16, y: 8)
+                .background(Theme.buttonFill,
+                            in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                .shadow(color: Theme.purple.opacity(0.3), radius: 16, y: 8)
                 .scaleEffect(pulse ? 1.04 : 0.96)
                 .animation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true), value: pulse)
 
@@ -142,19 +135,11 @@ struct AccountButton: View {
             }
         } else {
             Button("로그인") { authOpen = true }
-                .font(.system(size: 14, weight: .bold))
+                .font(.system(size: 14, weight: .heavy))
                 .foregroundStyle(.white)
                 .padding(.horizontal, 17).padding(.vertical, 10)
-                .background {
-                    Capsule()
-                        .fill(Theme.brand)
-                        .overlay {
-                            Capsule().fill(LinearGradient(
-                                colors: [.white.opacity(0.3), .clear],
-                                startPoint: .top, endPoint: .center))
-                        }
-                }
-                .shadow(color: Theme.purple.opacity(0.35), radius: 10, y: 4)
+                .background(Theme.buttonFill, in: Capsule())
+                .shadow(color: Theme.purple.opacity(0.26), radius: 10, y: 4)
         }
     }
 }

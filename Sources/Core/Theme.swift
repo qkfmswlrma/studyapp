@@ -33,6 +33,13 @@ enum Theme {
         ],
         startPoint: .topLeading, endPoint: .bottomTrailing)
 
+    /// 단추와 작은 조작 요소에 쓰는 채움.
+    /// 히어로 카드처럼 크게 깔 때는 3단이 좋지만, 작은 단추에 그대로 쓰면
+    /// 한 단추 안에서 색이 크게 변해 번들거려 보인다. 두 단만 쓴다.
+    static let buttonFill = LinearGradient(
+        colors: [Color(hex: 0x8B5CF6), Color(hex: 0x6D3BF5)],
+        startPoint: .topLeading, endPoint: .bottomTrailing)
+
     static let radius: CGFloat = 24
 
     /// 내용 카드의 바닥. 유리가 아니라 판이다.
@@ -158,16 +165,12 @@ struct GlassStroke: View {
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
+        // 왼쪽 위를 밝게, 오른쪽 아래를 어둡게 그리면 입체가 나긴 한다.
+        // 그런데 그건 손으로 그린 입체다. 빛이 실제로 도는 게 아니라 칠해둔 것이라
+        // 각도를 바꿔도 그대로 있어서 금세 어색해진다.
+        // 여기서는 아주 옅은 실선 하나로만 가장자리를 잡는다.
         RoundedRectangle(cornerRadius: radius, style: .continuous)
-            .strokeBorder(
-                LinearGradient(
-                    stops: [
-                        .init(color: .white.opacity(scheme == .dark ? 0.34 : 0.85), location: 0),
-                        .init(color: .white.opacity(scheme == .dark ? 0.06 : 0.30), location: 0.45),
-                        .init(color: .black.opacity(scheme == .dark ? 0.18 : 0.05), location: 1),
-                    ],
-                    startPoint: .topLeading, endPoint: .bottomTrailing),
-                lineWidth: 1)
+            .strokeBorder(.white.opacity(scheme == .dark ? 0.12 : 0.45), lineWidth: 0.8)
     }
 }
 
@@ -341,22 +344,11 @@ struct BrandButtonStyle: ButtonStyle {
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
-            .background {
-                Capsule()
-                    .fill(Theme.brand)
-                    .overlay {
-                        // 위쪽 절반에 걸리는 빛. 단추가 볼록해 보인다
-                        Capsule()
-                            .fill(
-                                LinearGradient(
-                                    colors: [.white.opacity(0.28), .white.opacity(0)],
-                                    startPoint: .top, endPoint: .center))
-                    }
-                    .overlay {
-                        Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 0.8)
-                    }
-            }
-            .shadow(color: Theme.purple.opacity(0.36), radius: 18, y: 8)
+            // 위쪽에 흰 그라데이션을 덧칠하지 않는다.
+            // 유광 단추는 2010년대 초반 수법이고, 유리처럼 보이려고 칠한 그림일 뿐이다.
+            // 깊이는 색과 그림자로 낸다.
+            .background(Theme.buttonFill, in: Capsule())
+            .shadow(color: Theme.purple.opacity(0.28), radius: 14, y: 6)
             .opacity(configuration.isPressed ? 0.9 : 1)
             .scaleEffect(configuration.isPressed ? 0.975 : 1)
             .animation(.spring(response: 0.25, dampingFraction: 0.7),

@@ -18,13 +18,27 @@ struct DailyPuzzleScreen: View {
     @State private var graded: Exam?
     @State private var guestDone = false
     @State private var month = Date()
+    /// 달력에서 고른 날. 비어 있으면 오늘 것을 본다.
+    @State private var picked: Date?
 
     /// 오늘 낼 문제. 서버가 공개된 것만 내려주므로 맨 앞이 오늘 것이다.
     private var today: Exam? { store.exams(of: .today).first }
 
+    /// 지금 화면에 띄운 문제. 달력에서 고르면 그날 것으로 바뀐다.
+    private var shown: Exam? {
+        if let picked { return store.dailyExam(on: picked) }
+        return today
+    }
+
+    private var isToday: Bool {
+        guard let picked else { return true }
+        return Calendar.current.isDateInToday(picked)
+    }
+
     /// 이미 푼 기록. 화면을 다시 열어도 결과가 그대로 보인다.
     private var submission: Submission? {
-        solved ?? today.flatMap { store.mySubmission(examId: $0.id) }
+        guard let exam = shown else { return nil }
+        return solved ?? store.mySubmission(examId: exam.id)
     }
 
     var body: some View {
@@ -32,22 +46,33 @@ struct DailyPuzzleScreen: View {
             AppBackground()
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    if let exam = today {
+                    if let exam = shown {
                         header(exam)
                         puzzle(exam)
                     } else {
-                        EmptyNote(text: "오늘은 아직 문제가 없어요")
+                        EmptyNote(text: picked == nil
+                                  ? "오늘은 아직 문제가 없어요"
+                                  : "그날은 문제가 없었어요")
                     }
 
-                    DailyCalendarCard(month: $month)
+                    DailyCalendarCard(month: $month, picked: $picked,
+                                      shownId: shown?.id)
                 }
                 .padding(20)
             }
         }
         .navigationTitle("오늘의 문제")
         .navigationBarTitleDisplayMode(.inline)
+        // 다른 날로 바꾸면 앞 문제에 적던 답이 남아 있으면 안 된다
+        .onChange(of: shown?.id) { _ in
+            answer = nil
+            error = nil
+            solved = nil
+            graded = nil
+            guestDone = false
+        }
         .task {
-            if let exam = today { await store.markRead(exam: exam) }
+            if let exam = shown { await store.markRead(exam: exam) }
         }
     }
 
@@ -61,17 +86,21 @@ struct DailyPuzzleScreen: View {
                 .foregroundStyle(Theme.purple)
 
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text("오늘의 문제")
+                Text(isToday ? "오늘의 문제" : "지난 문제")
                     .font(.system(size: 27, weight: .heavy))
                     .tracking(-0.8)
                     .foregroundStyle(Theme.t1)
                 Spacer(minLength: 0)
-                if store.dailyStreak > 0 {
+                if isToday, store.dailyStreak > 0 {
                     Text("🔥 \(store.dailyStreak)일 연속")
                         .font(.system(size: 12.5, weight: .heavy))
                         .foregroundStyle(Theme.pink)
                         .padding(.horizontal, 11).padding(.vertical, 6)
                         .background(Theme.tagBackground, in: Capsule())
+                } else if !isToday {
+                    Button("오늘로") { picked = nil }
+                        .font(.system(size: 12.5, weight: .heavy))
+                        .foregroundStyle(Theme.purple)
                 }
             }
         }
@@ -269,10 +298,15 @@ struct DailyResultCard: View {
 // ─────────────────────────────────────────────────────────
 
 /// 이번 달에 문제가 있던 날과 내가 푼 날을 한눈에 본다.
-/// 지난 날을 누르면 그날 문제가 열린다.
+///
+/// 날을 누르면 **위에 있는 문제가 그 자리에서 바뀐다.** 새 화면을 띄우지 않는다.
+/// 지난 문제를 훑어보려고 들어갔다 나왔다 하면 흐름이 끊긴다.
 struct DailyCalendarCard: View {
     @EnvironmentObject var store: Store
     @Binding var month: Date
+    @Binding var picked: Date?
+    /// 지금 위에 떠 있는 문제. 달력에서 어느 칸인지 표시한다.
+    let shownId: UUID?
 
     private var calendar: Calendar { Calendar.current }
 
@@ -322,6 +356,7 @@ struct DailyCalendarCard: View {
 
     private struct Cell {
         var day: Int?
+        var date: Date?
         var exam: Exam?
         var solved: Bool
     }
@@ -329,6 +364,7 @@ struct DailyCalendarCard: View {
     @ViewBuilder
     private func cell(_ c: Cell) -> some View {
         if let day = c.day {
+            let here = c.exam != nil && c.exam?.id == shownId
             let content = Text("\(day)")
                 .font(.system(size: 12.5, weight: .heavy))
                 .foregroundStyle(c.solved ? .white : (c.exam == nil ? Theme.t3 : Theme.t1))
@@ -336,15 +372,23 @@ struct DailyCalendarCard: View {
                 .frame(height: 34)
                 .background {
                     if c.solved {
-                        RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.brand)
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Theme.buttonFill)
                     } else if c.exam != nil {
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
                             .fill(Theme.tagBackground)
                     }
                 }
+                .overlay {
+                    // 지금 보고 있는 날
+                    if here {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .strokeBorder(Theme.purple, lineWidth: 2)
+                    }
+                }
 
-            if let exam = c.exam {
-                NavigationLink(value: exam) { content }
+            if c.exam != nil, let date = c.date {
+                Button { picked = date } label: { content }
                     .buttonStyle(PressableCardStyle())
             } else {
                 content
@@ -360,13 +404,14 @@ struct DailyCalendarCard: View {
         else { return [] }
 
         let lead = calendar.component(.weekday, from: first) - 1
-        var out = [Cell](repeating: Cell(day: nil, exam: nil, solved: false), count: lead)
+        var out = [Cell](repeating: Cell(day: nil, date: nil, exam: nil, solved: false),
+                         count: lead)
 
         for day in range {
             let date = calendar.date(byAdding: .day, value: day - 1, to: first)
             let exam = date.flatMap { store.dailyExam(on: $0) }
             let solved = exam.map { store.mySubmission(examId: $0.id) != nil } ?? false
-            out.append(Cell(day: day, exam: exam, solved: solved))
+            out.append(Cell(day: day, date: date, exam: exam, solved: solved))
         }
         return out
     }
